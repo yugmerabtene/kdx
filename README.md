@@ -82,6 +82,12 @@ Build and test locally:
 ./test.sh
 ```
 
+`test.sh` now includes:
+
+- positive smoke checks for `-S`, `-c`, and full compile/run
+- negative CLI checks (invalid flag, missing input, missing file)
+- oversized input rejection checks for lexer buffer safety
+
 CI runs on pushes and pull requests via GitHub Actions.
 
 ## Roadmap
