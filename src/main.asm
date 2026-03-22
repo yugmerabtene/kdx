@@ -21,9 +21,23 @@ section .data
     shell_cmd    db '/bin/sh', 0
     shell_args   db '-c', 0
     null_ptr     dq 0
-nasm_fmt     db 'nasm -f elf64 %s -o %s.o', 0
-ld_fmt       db 'ld -o %s %s.o', 0
+nasm_fmt     db 'nasm -f elf64 %s -o %s', 0
+ld_fmt       db 'ld -o %s %s', 0
 exec_fmt     db '%s', 0
+default_bin_file db 'test_output', 0
+default_asm_file db 'test_output.s', 0
+default_obj_file db 'test_output.o', 0
+tmp_asm_file db 'test_output.s', 0
+tmp_obj_file db 'test_output.o', 0
+no_input_msg db 'no input file specified', 10, 0
+multiple_inputs_msg db 'multiple input files specified', 10, 0
+invalid_flag_msg db 'invalid command line option', 10, 0
+read_error_msg db 'failed to read input file', 10, 0
+parse_error_msg db 'syntax error', 10, 0
+sema_error_msg db 'semantic error', 10, 0
+codegen_error_msg db 'code generation error', 10, 0
+asm_error_msg db 'assembly failed', 10, 0
+link_error_msg db 'linking failed', 10, 0
 
 section .bss
     argc         resq 1
@@ -34,9 +48,12 @@ section .bss
     source_len   resq 1
     asm_buf      resq 1
     asm_len      resq 1
+    asm_file     resq 1
+    obj_file     resq 1
     compile_only resb 1
     asm_only     resb 1
     exec_after   resb 1
+    help_only    resb 1
     opt_level    resb 1
     file_fd      resq 1
     nasm_cmd_buf resb 512
@@ -59,24 +76,37 @@ main:
     push rbp
     mov rbp, rsp
 
-    mov rcx, rdi          ; argc from execve
-    add rsi, 8            ; skip argv[0] to get to argv[1]
+    xor rax, rax
+    mov [input_file], rax
+    mov [output_file], rax
+    mov [asm_file], rax
+    mov [obj_file], rax
+    mov byte [compile_only], 0
+    mov byte [asm_only], 0
+    mov byte [exec_after], 0
+    mov byte [help_only], 0
+    mov byte [opt_level], 1
+
+    mov rcx, rdi                    ; argc
+    mov rbx, rsi                    ; argv
+    cmp rcx, 1
+    jle .after_parse
+    add rbx, 8                      ; skip argv[0]
+    dec rcx
 
 .parse_loop:
-    dec rcx
-    jz .done
+    test rcx, rcx
+    jz .after_parse
 
-    mov rdi, [rsi]
+    mov rdi, [rbx]
     cmp byte [rdi], '-'
-    jne .input_file
+    jne .input_arg
 
     inc rdi
     movzx rax, byte [rdi]
-    
     cmp al, '-'
-    je .skip_second_dash
+    je .long_flag
 
-.parse_flag:
     cmp al, 'c'
     je .flag_c
     cmp al, 'S'
@@ -88,14 +118,22 @@ main:
     cmp al, 'O'
     je .flag_O
     cmp al, 'h'
-    je .flag_help
-
+    je .flag_h
     jmp .invalid_flag
 
-.skip_second_dash:
+.long_flag:
     inc rdi
-    movzx rax, byte [rdi]
-    jmp .parse_flag
+    cmp byte [rdi], 'h'
+    jne .invalid_flag
+    cmp byte [rdi + 1], 'e'
+    jne .invalid_flag
+    cmp byte [rdi + 2], 'l'
+    jne .invalid_flag
+    cmp byte [rdi + 3], 'p'
+    jne .invalid_flag
+    cmp byte [rdi + 4], 0
+    jne .invalid_flag
+    jmp .flag_h
 
 .flag_c:
     mov byte [compile_only], 1
@@ -111,57 +149,199 @@ main:
 
 .flag_o:
     dec rcx
-    jz .error
-    add rsi, 8
-    mov rax, qword [rsi]
-    mov qword [output_file], rax
+    jz .invalid_flag
+    add rbx, 8
+    mov rax, [rbx]
+    mov [output_file], rax
     jmp .next_arg
 
 .flag_O:
     inc rdi
-    movzx rax, byte [rdi]
+    movzx eax, byte [rdi]
     sub al, '0'
     cmp al, 0
-    jl .error
+    jl .invalid_flag
     cmp al, 2
-    jg .error
+    jg .invalid_flag
     mov [opt_level], al
     jmp .next_arg
 
-.flag_help:
-    mov rax, 1
-    jmp .exit
+.flag_h:
+    mov byte [help_only], 1
+    jmp .next_arg
 
-.next_arg:
-    add rsi, 8
-    jmp .parse_loop
-
-.input_file:
+.input_arg:
     cmp qword [input_file], 0
     jne .multiple_inputs
     mov [input_file], rdi
     jmp .next_arg
 
-.multiple_inputs:
-    lea rdi, [rel .multiple_inputs_msg]
+.next_arg:
+    add rbx, 8
+    dec rcx
+    jmp .parse_loop
+
+.after_parse:
+    cmp byte [help_only], 1
+    jne .check_input
+    lea rdi, [rel usage_msg]
+    call print_string
+    xor rax, rax
+    jmp .exit
+
+.check_input:
+    cmp qword [input_file], 0
+    jne .pipeline
+    lea rdi, [rel no_input_msg]
     call print_error
-    jmp .error
-
-.multiple_inputs_msg db 'multiple input files specified', 10, 0
-
-.invalid_flag:
-    lea rdi, [rel .invalid_flag_msg]
-    call print_error
-    jmp .error
-
-.invalid_flag_msg db 'invalid command line option', 10, 0
-
-.error:
     mov rax, 1
     jmp .exit
 
-.done:
+.pipeline:
+    ; Read source into lexer buffer
+    mov rdi, [input_file]
+    lea rsi, [rel input_buffer]
+    call read_file
+    test rax, rax
+    jz .lex_init
+    lea rdi, [rel read_error_msg]
+    call print_error
+    mov rax, 5
+    jmp .exit
+
+.lex_init:
+    lea rdi, [rel input_buffer]
+    mov rsi, [source_len]
+    call lexer_init
+
+    call parser_init
+    call parse_program
+    test rax, rax
+    jz .sema_phase
+    lea rdi, [rel parse_error_msg]
+    call print_error
+    mov rax, 2
+    jmp .exit
+
+.sema_phase:
+    call sema_init
+    mov rdi, [ast_root]
+    call sema_check_program
+    test rax, rax
+    jz .codegen_phase
+    lea rdi, [rel sema_error_msg]
+    call print_error
+    mov rax, 3
+    jmp .exit
+
+.codegen_phase:
+    call codegen_init
+    mov rdi, [ast_root]
+    call codegen_program
+    test rax, rax
+    jz .collect_output
+    lea rdi, [rel codegen_error_msg]
+    call print_error
+    mov rax, 1
+    jmp .exit
+
+.collect_output:
+    call codegen_get_output
+    mov [asm_buf], rax
+    mov [asm_len], rdx
+
+    ; Resolve output paths
+    cmp byte [asm_only], 1
+    jne .prepare_compile_paths
+    mov rax, [output_file]
+    test rax, rax
+    jnz .set_asm_out
+    lea rax, [rel default_asm_file]
+.set_asm_out:
+    mov [asm_file], rax
+    jmp .write_asm
+
+.prepare_compile_paths:
+    lea rax, [rel tmp_asm_file]
+    mov [asm_file], rax
+
+    cmp byte [compile_only], 1
+    jne .set_link_paths
+    mov rax, [output_file]
+    test rax, rax
+    jnz .set_obj_only
+    lea rax, [rel default_obj_file]
+.set_obj_only:
+    mov [obj_file], rax
+    jmp .write_asm
+
+.set_link_paths:
+    lea rax, [rel tmp_obj_file]
+    mov [obj_file], rax
+    mov rax, [output_file]
+    test rax, rax
+    jnz .write_asm
+    lea rax, [rel default_bin_file]
+    mov [output_file], rax
+
+.write_asm:
+    call write_asm_file
+    test rax, rax
+    jz .maybe_stop_after_asm
+    lea rdi, [rel asm_error_msg]
+    call print_error
+    mov rax, 5
+    jmp .exit
+
+.maybe_stop_after_asm:
+    cmp byte [asm_only], 1
+    jne .assemble_phase
     xor rax, rax
+    jmp .exit
+
+.assemble_phase:
+    call assemble_with_nasm
+    test rax, rax
+    jz .maybe_stop_after_obj
+    lea rdi, [rel asm_error_msg]
+    call print_error
+    mov rax, 1
+    jmp .exit
+
+.maybe_stop_after_obj:
+    cmp byte [compile_only], 1
+    jne .link_phase
+    xor rax, rax
+    jmp .exit
+
+.link_phase:
+    call link_with_ld
+    test rax, rax
+    jz .maybe_exec
+    lea rdi, [rel link_error_msg]
+    call print_error
+    mov rax, 4
+    jmp .exit
+
+.maybe_exec:
+    cmp byte [exec_after], 1
+    jne .success
+    call execute_binary
+
+.success:
+    xor rax, rax
+    jmp .exit
+
+.multiple_inputs:
+    lea rdi, [rel multiple_inputs_msg]
+    call print_error
+    mov rax, 1
+    jmp .exit
+
+.invalid_flag:
+    lea rdi, [rel invalid_flag_msg]
+    call print_error
+    mov rax, 1
 
 .exit:
     pop rbp
@@ -268,14 +448,7 @@ write_asm_file:
     push rbp
     mov rbp, rsp
 
-    mov rdi, [output_file]
-    test rdi, rdi
-    jnz .use_output
-
-    mov rdi, [input_file]
-    call replace_extension
-
-.use_output:
+    mov rdi, [asm_file]
     mov rdx, [asm_buf]
     mov r8, [asm_len]
     call write_file
@@ -316,21 +489,14 @@ assemble_with_nasm:
     push rbp
     mov rbp, rsp
 
-    mov rdi, [output_file]
-    test rdi, rdi
-    jnz .do_assemble
-
-    mov rdi, [input_file]
-    call replace_extension
-    mov [output_file], rax
-
 .do_assemble:
-    ; Build nasm command: nasm -f elf64 <input> -o <output>.o
+    ; Build nasm command: nasm -f elf64 <asm_file> -o <obj_file>
     mov rdi, nasm_cmd_buf
     mov rsi, nasm_fmt
-    mov rdx, [input_file]
-    mov rcx, [output_file]
-    call snprintf
+    mov rdx, [asm_file]
+    mov rcx, [obj_file]
+    xor eax, eax
+    call sprintf
     test rax, rax
     jz .error
 
@@ -353,21 +519,14 @@ link_with_ld:
     push rbp
     mov rbp, rsp
 
-    mov rdi, [output_file]
-    test rdi, rdi
-    jnz .do_link
-
-    mov rdi, [input_file]
-    call replace_extension
-    mov [output_file], rax
-
 .do_link:
-    ; Build ld command: ld -o <output> <input>.o
+    ; Build ld command: ld -o <output> <obj_file>
     mov rdi, ld_cmd_buf
     mov rsi, ld_fmt
     mov rdx, [output_file]
-    mov rcx, [output_file]
-    call snprintf
+    mov rcx, [obj_file]
+    xor eax, eax
+    call sprintf
     test rax, rax
     jz .error
 
@@ -401,7 +560,8 @@ execute_binary:
     mov rdi, exec_cmd_buf
     mov rsi, exec_fmt
     mov rdx, [output_file]
-    call snprintf
+    xor eax, eax
+    call sprintf
     test rax, rax
     jz .error
 
@@ -430,9 +590,10 @@ print_error:
     ret
 
 print_string:
+    push rbp
+    mov rbp, rsp
     push rbx
     mov rbx, rdi
-    push rdi
 
     xor rcx, rcx
 .count_loop:

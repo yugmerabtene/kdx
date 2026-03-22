@@ -505,67 +505,52 @@ codegen_let:
 
     mov r12, rdi                    ; let node
 
-    ; Get variable name from node (offset 24)
+    ; Calculate offset for this variable and update local_offset
+    mov rax, [local_offset]
+    add rax, 8
+    mov [local_offset], rax   ; local_offset now holds positive offset for this variable
+    ; rax = positive offset
+
+    ; Compute negative offset for symbol table and address calculation
+    mov rbx, rax
+    neg rbx   ; rbx = negative offset
+
+    ; Look up symbol by name (to store offset)
     mov rdi, r12
     add rdi, 24                     ; variable name string
-
-    ; Look up if variable already exists in current scope
     mov rsi, rdi
     call symbol_lookup_local
     test rax, rax
-    jnz .duplicate_var
+    jz .store_failed   ; symbol not found
 
-    ; Calculate offset for new variable
-    mov rdi, [local_offset]
-    add rdi, 8                      ; Next 8-byte slot
-    mov [local_offset], rdi
-    neg rdi                         ; Stack offset is negative
+    ; rax = symbol pointer
+    ; rbx = negative offset
+    mov rdi, rax                    ; symbol pointer
+    mov rsi, rbx                    ; negative offset to store
+    call symbol_set_addr            ; store offset in symbol
 
-    ; Look up symbol again to store the offset
-    mov rsi, r12
-    add rsi, 24                     ; variable name string
-    call symbol_lookup_local
-    test rax, rax
-    jz .store_failed
-
-    mov r14, rax                    ; symbol pointer
-    mov r15, rdi                    ; offset value
-    call symbol_set_addr
-
-    jmp .continue_init
-
-.duplicate_var:
-    ; Variable already declared in this scope
-    mov rax, ERR_DUP_SYMBOL
-    jmp .error
-
-.store_failed:
-    mov rax, ERR_NOT_FOUND
-    jmp .error
-
-.continue_init:
+    ; Now, codegen the initializer expression (child index 2)
     mov rdi, r12
-    mov rsi, 2                      ; initializer at child index 2
+    mov rsi, 2
     call get_child_at
     mov r13, rax
 
     test r13, r13
-    jz .done
+    jz .done   ; no initializer, just store zero? but we should have an initializer
 
     mov rdi, r13
     call codegen_expression
 
-    ; Store result to stack at the variable's offset
-    mov rdi, [local_offset]
-    neg rdi
+    ; Store result to stack at the variable's offset (which we have in rbx as negative offset)
+    mov rdi, rbx
     call emit_mov_stack
 
 .done:
     xor rax, rax                    ; return success
     jmp .exit
 
-.error:
-    mov rax, 1                      ; return error
+.store_failed:
+    mov rax, 1                      ; error (symbol not found)
 
 .exit:
     pop r15
