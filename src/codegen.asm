@@ -45,11 +45,13 @@ section .data
     TYPE_BOOL_SIZE    equ 1
     TYPE_PTR_SIZE     equ 8
 
-    ; Default type
-    DEFAULT_TYPE_SIZE equ 8
+; Default type
+DEFAULT_TYPE_SIZE equ 8
 
-    ; AST node header size
-    NODE_HEADER_SIZE    equ 32
+; AST node header size
+NODE_HEADER_SIZE equ 32
+
+
 
 section .bss
     output_buffer     resb OUTPUT_BUF_SIZE
@@ -84,7 +86,10 @@ section .text
     global codegen_unary_op, codegen_call, codegen_new
     global codegen_emit_label, codegen_emit_instruction, codegen_get_output
     global codegen_emit_string, codegen_emit_number
-    extern malloc, free, memcpy, strlen
+    global get_child_at
+extern malloc, free, memcpy, strlen
+extern symbol_lookup, symbol_lookup_local, symbol_get_addr, symbol_set_addr
+extern ERR_DUP_SYMBOL, ERR_NOT_FOUND
 
 ;============================================================================
 ; INITIALIZATION
@@ -93,17 +98,6 @@ section .text
 codegen_init:
     push rbp
     mov rbp, rsp
-
-    ; Debug: entering codegen_init
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_enter_codegen_init]
-    mov rdx, 20
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
 
     mov qword [output_pos], 0
     mov qword [output_size], 0
@@ -114,17 +108,6 @@ codegen_init:
     mov qword [current_func], 0
     mov qword [string_pool_pos], 0
     mov qword [string_count], 0
-
-    ; Debug: codegen_init done
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_codegen_init_done]
-    mov rdx, 18
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
 
     xor rax, rax
     pop rbp
@@ -150,234 +133,68 @@ codegen_program:
 
     mov r12, rdi                    ; AST root node
 
-    ; Debug: entering codegen_program
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_enter_codegen]
-    mov rdx, 15
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
-    ; Debug: before emit_text_section
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_before_text]
-    mov rdx, 19
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
     call emit_text_section
-    
-    ; Debug: after emit_text_section
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_text]
-    mov rdx, 19
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
-    ; Debug: about to call emit_externs
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_before_externs]
-    mov rdx, 17
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
     call emit_externs
     
     ; Emit _start entry point
     call emit_start_entry
     
-    ; Debug: after emit_externs
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_externs]
-    mov rdx, 15
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
     mov qword [local_count], 0
     mov qword [local_offset], 0
-
-    ; Debug: about to get_child_count
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_before_get_child_count]
-    mov rdx, 20
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
+    
     mov rdi, r12
     call get_child_count
     mov r14, rax                    ; child count
     
-    ; Debug: child count
-    push rdi
-    push rsi
-    push r14
-    mov rax, r14
-    add al, '0'
-    mov [rsp-1], al
-    lea rsi, [rsp-1]
-    mov rdi, 1
-    mov rdx, 1
-    mov rax, 1
-    syscall
-    pop r14
-    pop rsi
-    pop rdi
-    
-    ; Debug: after get_child_count
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_get_child_count]
-    mov rdx, 19
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
-    ; Debug: child count value
-    push rdi
-    push rsi
-    push r14
-    ; Print child count as a single digit (for debugging)
-    mov rax, r14
-    add al, '0'
-    mov [rsp-1], al
-    lea rsi, [rsp-1]
-    mov rdi, 1
-    mov rdx, 1
-    mov rax, 1
-    syscall
-    pop r14
-    pop rsi
-    pop rdi
-    
     xor r13, r13                    ; child index
-
-.process_child:
-    cmp r13, r14
-    jge .done
-
-    ; Debug: processing child
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_processing_child]
-    mov rdx, 16
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
-    mov rdi, r12
-    mov rsi, r13
-    call get_child_at
-    mov r15, rax                    ; child node
-
-    test r15, r15
-    jz .next_child
-
-    mov rdi, r15
-    call get_node_type_value
-    mov rbx, rax                    ; save node type in rbx
-
-    ; Debug: after get_node_type_value
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_get_type]
-    mov rdx, 16
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
-    cmp rbx, 3                      ; NODE_CLASS
-    je .gen_class
-    cmp rbx, 4                      ; NODE_FUNCTION
-    je .gen_func
     
-    ; Unknown node type, skip
-    jmp .next_child
-
-.next_child:
-    ; Debug: next_child
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_next_child]
-    mov rdx, 12
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
+    .process_child:
+        cmp r13, r14
+        jge .done
     
-    inc r13
-    jmp .process_child
-
-.gen_class:
-    ; Debug: gen_class
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_gen_class]
-    mov rdx, 10
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
+        mov rdi, r12
+        mov rsi, r13
+        call get_child_at
+        mov r15, rax                    ; child node
     
-    mov rdi, r15                    ; class node
-    call codegen_class
-    jmp .next_child
-
-.gen_func:
-    ; Debug: gen_func
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_gen_func]
-    mov rdx, 9
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
+        test r15, r15
+        jz .next_child
     
-    mov rdi, r15                    ; function node
-    call codegen_function
-    jmp .next_child
-
-.done:
-    xor rax, rax                    ; return 0 for success
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    pop rbp
-    ret
+        mov rdi, r15
+        call get_node_type_value
+        mov rbx, rax                    ; save node type in rbx
+    
+        cmp rbx, 3                      ; NODE_CLASS
+        je .gen_class
+        cmp rbx, 4                      ; NODE_FUNCTION
+        je .gen_func
+        
+        ; Unknown node type, skip
+        jmp .next_child
+    
+    .next_child:
+        inc r13
+        jmp .process_child
+    
+    .gen_class:
+        mov rdi, r15                    ; class node
+        call codegen_class
+        jmp .next_child
+    
+    .gen_func:
+        mov rdi, r15                    ; function node
+        call codegen_function
+        jmp .next_child
+    
+    .done:
+        xor rax, rax                    ; return 0 for success
+        pop r15
+        pop r14
+        pop r13
+        pop r12
+        pop rbx
+        pop rbp
+        ret
 
 ;============================================================================
 ; CLASS GENERATION
@@ -449,124 +266,34 @@ codegen_function:
     push r14
     push r15
 
-    ; Debug: entering codegen_function
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_enter_codegen_func]
-    mov rdx, 19
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
     mov r12, rdi                    ; function node
     mov [current_func], r12
 
     mov qword [local_count], 0
     mov qword [local_offset], 0
 
-    ; Debug: after setup
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_setup]
-    mov rdx, 14
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-
     call emit_newline
-    
-    ; Debug: after emit_newline
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_newline]
-    mov rdx, 16
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
+
     ; Emit function label: "func_"
     mov rdi, str_func_prefix
     call emit_string
-    
-    ; Debug: after func_prefix
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_prefix]
-    mov rdx, 15
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
+
     ; Emit function name from node
     mov rdi, r12
     add rdi, 24                     ; name field
     call emit_string
-    
-    ; Debug: after name
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_name]
-    mov rdx, 12
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
+
     mov rdi, str_colon
     call emit_string
-    
-    ; Debug: after colon
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_colon]
-    mov rdx, 12
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
     mov rdi, str_newline
     call emit_string
-    
-    ; Debug: after newline2
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_newline2]
-    mov rdx, 14
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
 
     ; Emit prologue
     mov rdi, str_push_rbp
     call emit_string
-    
-    ; Debug: after push_rbp
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_push_rbp]
-    mov rdx, 15
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
     mov rdi, str_newline
     call emit_string
-    
+
     mov rdi, str_mov_rbp_rsp
     call emit_string
     mov rdi, str_newline
@@ -577,31 +304,20 @@ codegen_function:
     mov rsi, 0
     call get_child_at
     mov r13, rax
-    
+
     ; Get function body - it's the sibling of params or stored differently
     ; For now, just emit a simple return
-    
+
     ; Emit epilogue
     mov rdi, str_pop_rbp
     call emit_string
     mov rdi, str_newline
     call emit_string
-    
+
     mov rdi, str_ret
     call emit_string
     mov rdi, str_newline
     call emit_string
-    
-    ; Debug: about to return
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_about_to_return]
-    mov rdx, 16
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
 
     pop r15
     pop r14
@@ -611,15 +327,6 @@ codegen_function:
     ret
 
 str_func_prefix: db 'func_', 0
-debug_enter_codegen_func: db 'enter codegen_func', 10, 0
-debug_after_setup: db 'after setup', 10, 0
-debug_after_newline: db 'after newline', 10, 0
-debug_after_prefix: db 'after prefix', 10, 0
-debug_after_name: db 'after name', 10, 0
-debug_after_colon: db 'after colon', 10, 0
-debug_after_newline2: db 'after newline2', 10, 0
-debug_after_push_rbp: db 'after push_rbp', 10, 0
-debug_about_to_return: db 'about to return', 10, 0
 str_colon: db ':', 0
 str_pop_rbp: db 'pop rbp', 0
 str_ret: db 'ret', 0
@@ -793,13 +500,50 @@ codegen_let:
     mov rbp, rsp
     push r12
     push r13
+    push r14
+    push r15
 
     mov r12, rdi                    ; let node
 
-    mov rdi, [local_offset]
-    add rdi, 8
-    mov [local_offset], rdi
+    ; Get variable name from node (offset 24)
+    mov rdi, r12
+    add rdi, 24                     ; variable name string
 
+    ; Look up if variable already exists in current scope
+    mov rsi, rdi
+    call symbol_lookup_local
+    test rax, rax
+    jnz .duplicate_var
+
+    ; Calculate offset for new variable
+    mov rdi, [local_offset]
+    add rdi, 8                      ; Next 8-byte slot
+    mov [local_offset], rdi
+    neg rdi                         ; Stack offset is negative
+
+    ; Look up symbol again to store the offset
+    mov rsi, r12
+    add rsi, 24                     ; variable name string
+    call symbol_lookup_local
+    test rax, rax
+    jz .store_failed
+
+    mov r14, rax                    ; symbol pointer
+    mov r15, rdi                    ; offset value
+    call symbol_set_addr
+
+    jmp .continue_init
+
+.duplicate_var:
+    ; Variable already declared in this scope
+    mov rax, ERR_DUP_SYMBOL
+    jmp .error
+
+.store_failed:
+    mov rax, ERR_NOT_FOUND
+    jmp .error
+
+.continue_init:
     mov rdi, r12
     mov rsi, 2                      ; initializer at child index 2
     call get_child_at
@@ -811,11 +555,21 @@ codegen_let:
     mov rdi, r13
     call codegen_expression
 
+    ; Store result to stack at the variable's offset
     mov rdi, [local_offset]
     neg rdi
     call emit_mov_stack
 
 .done:
+    xor rax, rax                    ; return success
+    jmp .exit
+
+.error:
+    mov rax, 1                      ; return error
+
+.exit:
+    pop r15
+    pop r14
     pop r13
     pop r12
     pop rbp
@@ -1403,12 +1157,55 @@ codegen_identifier:
     push rbp
     mov rbp, rsp
     push r12
-
+    push r13
+    
     mov r12, rdi                    ; identifier node
-
+    
+    ; Get the identifier name (at offset 24)
+    mov rdi, r12
+    add rdi, 24                     ; name field
+    
+    ; Look up the symbol in the symbol table
+    mov rsi, rdi                    ; rsi = name pointer for lookup
+    call symbol_lookup
+    test rax, rax
+    jz .not_found
+    
+    ; Get the offset from the symbol table entry
+    mov rdi, rax                    ; symbol pointer
+    call symbol_get_addr            ; rax = offset (negative for stack variables)
+    
+    ; Generate code: mov rax, [rbp + offset]
+    ; Since offset is negative, this becomes: mov rax, [rbp - offset]
     call emit_instruction
-    db 'mov rax, [rbp-8]',10,0
-
+    db 'mov rax, [rbp', 0
+    
+    ; Check if offset is negative (it should be for stack variables)
+    test rax, rax
+    jns .positive_offset
+    ; Negative offset: emit minus
+    neg rax
+    call emit_instruction
+    db '-', 0
+    jmp .emit_offset_value
+.positive_offset:
+    ; Positive offset: emit plus (shouldn't happen for locals, but handle anyway)
+    call emit_instruction
+    db '+', 0
+.emit_offset_value:
+    call emit_number_imm
+    call emit_instruction
+    db ']', 10, 0
+    
+    jmp .done
+    
+.not_found:
+    ; If symbol not found, treat as external function or generate error
+    ; For now, just load zero
+    xor rax, rax
+    
+.done:
+    pop r13
     pop r12
     pop rbp
     ret

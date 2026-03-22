@@ -59,6 +59,8 @@ section .text
     global symbol_init, symbol_enter_scope, symbol_exit_scope
     global symbol_insert, symbol_lookup, symbol_lookup_local
     global symbol_get_count, symbol_get_at
+    global symbol_get_addr, symbol_set_addr
+    global SYM_VARIABLE, ERR_DUP_SYMBOL, ERR_NOT_FOUND
     extern malloc, free, memcpy, strlen
 
 ; Initialize the symbol table
@@ -179,86 +181,64 @@ symbol_insert:
     call symbol_lookup_local
     test rax, rax
     jnz .duplicate
-    
+
     ; Check if table is full
     mov rax, [symbol_count]
     cmp rax, MAX_SYMBOLS
     jge .table_full
-    
+
     ; Calculate symbol entry offset
     imul rax, [symbol_count], SYMBOL_SIZE
     lea r15, [symbol_table + rax]   ; r15 = pointer to new entry
-    
+
     ; Copy name (max 63 characters + null)
     mov rdi, r15
     mov rsi, r12
     mov rdx, SYMBOL_NAME_SIZE - 1
     call strncpy_safe
-    
+
     ; Set data type
     mov dword [r15 + SYMBOL_TYPE_OFF], r13d
-    
+
     ; Set symbol type
     mov dword [r15 + SYMBOL_SYMTYPE_OFF], r14d
-    
+
     ; Set visibility
     mov dword [r15 + SYMBOL_VIS_OFF], ebx
-    
+
     ; Set scope id
     mov rax, [current_scope_id]
     mov qword [r15 + SYMBOL_SCOPE_OFF], rax
-    
+
     ; Initialize address, size to 0
     mov qword [r15 + SYMBOL_ADDR_OFF], 0
     mov qword [r15 + SYMBOL_SIZE_OFF], 0
-    
+
     ; Clear reserved bytes
     xor rax, rax
     mov qword [r15 + SYMBOL_RESV_OFF], rax
     mov dword [r15 + SYMBOL_RESV_OFF + 8], eax
-    
+
     ; Increment symbol count
     inc qword [symbol_count]
-    
+
     ; Return pointer to symbol
     mov rax, r15
     jmp .done
-.debug_invalid: db 'INVALID PTR!', 10, 0
-    
+
 .table_full:
     xor rax, rax
     mov rax, ERR_TABLE_FULL
     jmp .done
 
 .invalid_ptr:
-    ; Debug: invalid pointer
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [.debug_invalid]
-    mov rdx, 13
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
     xor rax, rax
     jmp .done
-    
+
 .duplicate:
     xor rax, rax
-    
+
 .done:
-    ; Debug: in symbol_insert done
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [.debug_sym_done]
-    mov rdx, 13
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
     pop r15
     pop r14
     pop r13
@@ -266,8 +246,6 @@ symbol_insert:
     pop rbx
     pop rbp
     ret
-
-.debug_sym_done: db 'sym_insert done', 10, 0
 
 ; Safe string copy with length limit
 ; Args: rdi = dest, rsi = src, rdx = max length
@@ -282,84 +260,35 @@ strncpy_safe:
     mov r12, rsi    ; Save src
     mov r13, rdx    ; Save max length
     
-    ; Debug: entering strncpy_safe
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [.debug_strncpy]
-    mov rdx, 12
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
     xor rcx, rcx
     
-.copy_loop:
-    cmp rcx, r13
-    jge .done
-    
-    ; Debug: each iteration
-    push rcx
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [.debug_copy]
-    mov rdx, 6
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    pop rcx
-    
-    mov al, [r12 + rcx]
-    mov [rbx + rcx], al
-    test al, al
-    jz .done
-    
-    inc rcx
-    jmp .copy_loop
-    
-.done:
-    ; Debug: in done
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [.debug_done]
-    mov rdx, 6
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
-    ; Null terminate dest if we reached max length
-    cmp rcx, r13
-    jl .finish
-    mov byte [rbx + r13], 0
-    
-.finish:
-    ; Debug: in finish
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [.debug_finish]
-    mov rdx, 8
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
-    pop r13
-    pop r12
-    pop rbx
-    pop rbp
-    ret
-
-.debug_done: db 'done', 10, 0
-.debug_finish: db 'finish', 10, 0
-
-.debug_strncpy: db 'in strncpy', 10, 0
-.debug_copy: db 'copy', 10, 0
+    .copy_loop:
+        cmp rcx, r13
+        jge .done
+        
+        mov al, [r12 + rcx]
+        mov [rbx + rcx], al
+        test al, al
+        jz .done
+        
+        inc rcx
+        jmp .copy_loop
+        
+    .done:
+        ; Null terminate dest if we reached max length
+        cmp rcx, r13
+        jl .finish
+        mov byte [rbx + r13], 0
+        
+    .finish:
+        pop rsi
+        pop rdi
+        
+        pop r13
+        pop r12
+        pop rbx
+        pop rbp
+        ret
 
 ; Lookup a symbol by name (all scopes)
 ; Args: rdi = name pointer

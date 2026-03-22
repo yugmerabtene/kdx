@@ -68,7 +68,6 @@ section .bss
     child_count:         resq 1
 
 section .data
-    debug_build_node: db 'build_node', 10, 0
 
 section .text
     global parser_init, parse_program, parse_class, parse_function
@@ -306,43 +305,18 @@ skip_semicolon:
 add_child:
     push rbp
     mov rbp, rsp
-    
-    ; Debug: add_child called
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_add_child]
-    mov rdx, 11
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
+     
     mov rcx, [child_count]
     cmp rcx, 8
     jge .done
     mov [children_buf + rcx * 8], rdi
     inc qword [child_count]
-    
-    ; Debug: after add_child
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_after_add_child]
-    mov rdx, 15
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
-    
-.done:
+     
+    .done:
     pop rbp
     ret
 
-debug_add_child: db 'add_child', 10, 0
-debug_after_add_child: db 'after add_child', 10, 0
-debug_ast_root: db 'ast_root ok', 10, 0
-debug_alloc_failed: db 'alloc failed', 10, 0
+
 
 build_node:
     push rbp
@@ -415,16 +389,6 @@ parse_program:
     jmp .parse_loop
 
 .alloc_failed:
-    ; Debug: alloc failed
-    push rdi
-    push rsi
-    mov rdi, 1
-    lea rsi, [rel debug_alloc_failed]
-    mov rdx, 13
-    mov rax, 1
-    syscall
-    pop rsi
-    pop rdi
     xor rax, rax
     pop rbp
     ret

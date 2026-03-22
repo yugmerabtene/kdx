@@ -21,9 +21,9 @@ section .data
     shell_cmd    db '/bin/sh', 0
     shell_args   db '-c', 0
     null_ptr     dq 0
-    nasm_fmt     db 'nasm -f elf64 %s -o %s.o', 0
-    ld_fmt       db 'ld -o %s build/*.o', 0
-    exec_fmt     db '%s', 0
+nasm_fmt     db 'nasm -f elf64 %s -o %s.o', 0
+ld_fmt       db 'ld -o %s %s.o', 0
+exec_fmt     db '%s', 0
 
 section .bss
     argc         resq 1
@@ -58,204 +58,9 @@ _start:
 main:
     push rbp
     mov rbp, rsp
-    sub rsp, 128
 
-    mov [argc], rdi
-    mov [argv], rsi
-
-    xor rax, rax
-    mov [compile_only], al
-    mov [asm_only], al
-    mov [exec_after], al
-    mov byte [opt_level], 1
-
-    call parse_args
-    test rax, rax
-    jnz .args_error
-
-    cmp qword [input_file], 0
-    je .no_input
-
-    mov rdi, [input_file]
-    mov rsi, input_buffer
-    call read_file
-    test rax, rax
-    jnz .read_error
-
-    mov rdi, input_buffer
-    mov rsi, [source_len]
-    call lexer_init
-    test rax, rax
-    jnz .lex_error
-
-    call parser_init
-    call parse_program
-    test rax, rax
-    jnz .parse_error
-
-    ; Semantic analysis
-    call sema_init
-    test rax, rax
-    jnz .sema_error
-    
-    mov rdi, [ast_root]
-    call sema_check_program
-    test rax, rax
-    jnz .sema_error
-
-    ; Code generation
-    call codegen_init
-    test rax, rax
-    jnz .codegen_error
-
-    ; Pass AST root to codegen_program
-    mov rdi, [ast_root]
-    call codegen_program
-    test rax, rax
-    jnz .codegen_error
-
-    ; Get the generated assembly
-    call codegen_get_output
-    mov [asm_buf], rax
-    mov [asm_len], rdx
-
-    call write_asm_file
-    test rax, rax
-    jnz .write_error
-
-    ; Assemble with NASM
-    call assemble_with_nasm
-    test rax, rax
-    jnz .asm_error
-
-    ; Link with LD
-    call link_with_ld
-    test rax, rax
-    jnz .link_error
-
-    ; Success
-    jmp .success
-
-    call codegen_program
-    test rax, rax
-    jnz .codegen_error
-
-    call write_asm_file
-    test rax, rax
-    jnz .write_error
-
-    cmp byte [asm_only], 1
-    je .success
-
-    call assemble_with_nasm
-    test rax, rax
-    jnz .asm_error
-
-    cmp byte [compile_only], 1
-    je .success
-
-    call link_with_ld
-    test rax, rax
-    jnz .link_error
-
-    cmp byte [exec_after], 1
-    je .execute_binary
-
-.success:
-    xor rax, rax
-    jmp .cleanup
-
-.args_error:
-    lea rdi, [rel usage_msg]
-    call print_error
-    mov rax, 1
-    jmp .cleanup
-
-.no_input:
-    lea rdi, [rel .no_input_msg]
-    call print_error
-    mov rax, 5
-    jmp .cleanup
-
-.read_error:
-    lea rdi, [rel .read_error_msg]
-    call print_error
-    mov rax, 5
-    jmp .cleanup
-
-.lex_error:
-    lea rdi, [rel .lex_error_msg]
-    call print_error
-    mov rax, 2
-    jmp .cleanup
-
-.parse_error:
-    lea rdi, [rel .parse_error_msg]
-    call print_error
-    mov rax, 2
-    jmp .cleanup
-
-.sema_error:
-    lea rdi, [rel .sema_error_msg]
-    call print_error
-    mov rax, 3
-    jmp .cleanup
-
-.codegen_error:
-    lea rdi, [rel .codegen_error_msg]
-    call print_error
-    mov rax, 1
-    jmp .cleanup
-
-.asm_error:
-    lea rdi, [rel .asm_error_msg]
-    call print_error
-    mov rax, 1
-    jmp .cleanup
-
-.link_error:
-    lea rdi, [rel .link_error_msg]
-    call print_error
-    mov rax, 4
-    jmp .cleanup
-
-.write_error:
-    mov rdi, 5
-    call print_error
-    mov rdi, .write_error_msg
-    call print_string
-    mov rax, 5
-    jmp .cleanup
-
-.execute_binary:
-    call execute_binary
-    mov rax, 0
-
-.cleanup:
-    mov rsp, rbp
-    pop rbp
-    ret
-
-.no_input_msg      db 'no input file specified', 10, 0
-.read_error_msg    db 'failed to read input file', 10, 0
-.lex_error_msg     db 'lexical error', 10, 0
-.parse_error_msg   db 'syntax error', 10, 0
-.success_msg        db 'OK', 10, 0
-.sema_error_msg    db 'semantic error', 10, 0
-.codegen_error_msg db 'code generation error', 10, 0
-.asm_error_msg     db 'assembly failed', 10, 0
-.link_error_msg    db 'linking failed', 10, 0
-.write_error_msg   db 'failed to write output', 10, 0
-nasm_simple_cmd db 'nasm -f elf64 test_output -o test_output.o', 0
-ld_simple_cmd db 'ld -o test_output test_output.o', 0
-
-parse_args:
-    push rbp
-    mov rbp, rsp
-
-    mov rcx, [argc]
-    mov rsi, [argv]
-    add rsi, 8
+    mov rcx, rdi          ; argc from execve
+    add rsi, 8            ; skip argv[0] to get to argv[1]
 
 .parse_loop:
     dec rcx
@@ -283,9 +88,6 @@ parse_args:
     cmp al, 'O'
     je .flag_O
     cmp al, 'h'
-    je .flag_help
-
-    cmp word [rdi], 'no'
     je .flag_help
 
     jmp .invalid_flag
@@ -523,8 +325,16 @@ assemble_with_nasm:
     mov [output_file], rax
 
 .do_assemble:
-    ; Use a simple hardcoded command for now
-    lea rdi, [rel nasm_simple_cmd]
+    ; Build nasm command: nasm -f elf64 <input> -o <output>.o
+    mov rdi, nasm_cmd_buf
+    mov rsi, nasm_fmt
+    mov rdx, [input_file]
+    mov rcx, [output_file]
+    call snprintf
+    test rax, rax
+    jz .error
+
+    mov rdi, nasm_cmd_buf
     call system
     test rax, rax
     jnz .error
@@ -552,8 +362,16 @@ link_with_ld:
     mov [output_file], rax
 
 .do_link:
-    ; Use a simple hardcoded command for now
-    lea rdi, [rel ld_simple_cmd]
+    ; Build ld command: ld -o <output> <input>.o
+    mov rdi, ld_cmd_buf
+    mov rsi, ld_fmt
+    mov rdx, [output_file]
+    mov rcx, [output_file]
+    call snprintf
+    test rax, rax
+    jz .error
+
+    mov rdi, ld_cmd_buf
     call system
     test rax, rax
     jnz .error

@@ -78,6 +78,8 @@ global sema_add_builtin_symbols, sema_get_error
 extern symbol_init, symbol_insert, symbol_lookup, symbol_enter_scope
 extern symbol_exit_scope, symbol_get_type, ast_get_child, ast_get_sibling
 extern ast_get_type, ast_get_data
+extern get_child_at
+extern SYM_VARIABLE
 
 sema_init:
     push rbp
@@ -202,7 +204,88 @@ sema_check_break: push rbp; mov rbp, rsp; cmp qword [sema_in_loop], 0; je .be; x
 
 sema_check_continue: push rbp; mov rbp, rsp; cmp qword [sema_in_loop], 0; je .ce; xor rax, rax; pop rbp; ret; .ce: mov rax, ERR_INVALID_OP; pop rbp; ret
 
-sema_check_let: push rbp; mov rbp, rsp; push r12; mov r12, rdi; mov rdi, [r12 + 8]; test rdi, rdi; je .le; mov rdi, [rdi + 24]; test rdi, rdi; je .le; mov rsi, TYPE_I64; mov rdx, 1; xor rcx, rcx; call symbol_insert; test rax, rax; je .le; mov rdi, [r12 + 16]; test rdi, rdi; je .lok; push r12; call sema_check_expression; pop r12; .lok: xor rax, rax; jmp .ld; .le: mov rax, ERR_TYPE_MISMATCH; .ld: pop r12; pop rbp; ret
+sema_check_let:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    mov r12, rdi                    ; let node
+    
+    ; Get variable name (child 0)
+    mov rdi, r12
+    mov rsi, 0
+    call get_child_at
+    mov r13, rax                    ; name node
+    test r13, r13
+    jz .error
+    
+    ; Get initializer expression (child 2)
+    mov rdi, r12
+    mov rsi, 2
+    call get_child_at
+    mov r14, rax                    ; initializer node
+    
+    ; Get type annotation (child 1) - may be null
+    mov rdi, r12
+    mov rsi, 1
+    call get_child_at
+    mov r15, rax                    ; type node or 0
+    
+    ; Determine variable type
+    test r15, r15
+    jz .infer_type                  ; No type annotation, infer from initializer
+    
+    ; Has explicit type annotation - extract type from type node
+    mov rdi, r15
+    mov rsi, 24                     ; type name string is at offset 24 in type node
+    add rdi, rsi
+    mov rsi, rdi                    ; rsi = type name string
+    call get_type_id_from_name      ; rax = type ID
+    jmp .store_var
+    
+.infer_type:
+    ; No explicit type - infer from initializer expression
+    test r14, r14
+    jz .default_i64                 ; No initializer, default to i64
+    
+    ; Check initializer expression type
+    mov rdi, r14
+    call sema_check_expression      ; rax = type of initializer
+    jmp .store_var
+    
+.default_i64:
+    mov rax, TYPE_I64               ; Default to 64-bit integer
+    
+.store_var:
+    ; rax contains the type to use
+    ; Insert symbol with name, type, SYM_VARIABLE, PUBLIC visibility
+    mov rdi, r13                    ; name node
+    add rdi, 24                     ; name string
+    mov rsi, rax                    ; type
+    mov rdx, SYM_VARIABLE           ; symbol type
+    xor rcx, rcx                    ; visibility (PUBLIC)
+    call symbol_insert              ; rax = symbol pointer or 0
+    
+    test rax, rax
+    jz .error                       ; Failed to insert symbol
+    
+    .ok:
+    xor rax, rax                    ; Success
+    jmp .done
+    
+.error:
+    mov rax, 1                      ; Error
+    
+.done:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
+    ret
 
 sema_check_assign: push rbp; mov rbp, rsp; push r12; mov r12, rdi; mov rdi, [r12 + 8]; test rdi, rdi; je .ae; push r12; call sema_check_expression; pop r12; mov rbx, rax; mov rdi, [r12 + 16]; test rdi, rdi; je .ae; push r12; call sema_check_expression; pop r12; mov r12, rax; mov rdi, rbx; mov rsi, r12; call sema_check_types; test rax, rax; jne .aok; .ae: mov rax, ERR_TYPE_MISMATCH; jmp .ad; .aok: xor rax, rax; .ad: pop r12; pop rbp; ret
 
@@ -218,6 +301,193 @@ sema_check_member: push rbp; mov rbp, rsp; mov rbx, rdi; mov rdi, [rbx + 8]; tes
 
 sema_check_types: push rbp; mov rbp, rsp; cmp rdi, rsi; je .tok; cmp rdi, TYPE_I64; je .tn; cmp rdi, TYPE_I32; je .tn; cmp rdi, TYPE_I16; je .tn; cmp rdi, TYPE_I8; je .tn; cmp rdi, TYPE_U64; je .tn; cmp rdi, TYPE_U32; je .tn; cmp rdi, TYPE_U16; je .tn; cmp rdi, TYPE_U8; je .tn; cmp rdi, TYPE_F32; je .tn; cmp rdi, TYPE_F64; je .tn; jmp .tno; .tn: cmp rsi, TYPE_I64; je .tok; cmp rsi, TYPE_I32; je .tok; cmp rsi, TYPE_I16; je .tok; cmp rsi, TYPE_I8; je .tok; cmp rsi, TYPE_U64; je .tok; cmp rsi, TYPE_U32; je .tok; cmp rsi, TYPE_U16; je .tok; cmp rsi, TYPE_U8; je .tok; cmp rsi, TYPE_F32; je .tok; cmp rsi, TYPE_F64; je .tok; .tno: xor rax, rax; jmp .tdone; .tok: mov rax, 1; .tdone: pop rbp; ret
 
+; Convert type name string to type ID constant
+; Input: rsi = pointer to null-terminated type name string
+; Output: rax = type ID constant
+get_type_id_from_name:
+    push rbp
+    mov rbp, rsp
+    push rbx
+    push r12
+    
+    mov r12, rsi
+    
+    ; Check against known type names
+    lea rbx, [str_i8]
+    call string_equal
+    test rax, rax
+    jnz .type_i8
+    
+    lea rbx, [str_i16]
+    call string_equal
+    test rax, rax
+    jnz .type_i16
+    
+    lea rbx, [str_i32]
+    call string_equal
+    test rax, rax
+    jnz .type_i32
+    
+    lea rbx, [str_i64]
+    call string_equal
+    test rax, rax
+    jnz .type_i64
+    
+    lea rbx, [str_u8]
+    call string_equal
+    test rax, rax
+    jnz .type_u8
+    
+    lea rbx, [str_u16]
+    call string_equal
+    test rax, rax
+    jnz .type_u16
+    
+    lea rbx, [str_u32]
+    call string_equal
+    test rax, rax
+    jnz .type_u32
+    
+    lea rbx, [str_u64]
+    call string_equal
+    test rax, rax
+    jnz .type_u64
+    
+    lea rbx, [str_f32]
+    call string_equal
+    test rax, rax
+    jnz .type_f32
+    
+    lea rbx, [str_f64]
+    call string_equal
+    test rax, rax
+    jnz .type_f64
+    
+    lea rbx, [str_bool]
+    call string_equal
+    test rax, rax
+    jnz .type_bool
+    
+    lea rbx, [str_string]
+    call string_equal
+    test rax, rax
+    jnz .type_string
+    
+    lea rbx, [str_char]
+    call string_equal
+    test rax, rax
+    jnz .type_char
+    
+    lea rbx, [str_void]
+    call string_equal
+    test rax, rax
+    jnz .type_void
+    
+    ; Default to i64 if unknown
+    mov rax, TYPE_I64
+    jmp .done
+    
+.type_i8:
+    mov rax, TYPE_I8
+    jmp .done
+.type_i16:
+    mov rax, TYPE_I16
+    jmp .done
+.type_i32:
+    mov rax, TYPE_I32
+    jmp .done
+.type_i64:
+    mov rax, TYPE_I64
+    jmp .done
+.type_u8:
+    mov rax, TYPE_U8
+    jmp .done
+.type_u16:
+    mov rax, TYPE_U16
+    jmp .done
+.type_u32:
+    mov rax, TYPE_U32
+    jmp .done
+.type_u64:
+    mov rax, TYPE_U64
+    jmp .done
+.type_f32:
+    mov rax, TYPE_F32
+    jmp .done
+.type_f64:
+    mov rax, TYPE_F64
+    jmp .done
+.type_bool:
+    mov rax, TYPE_BOOL
+    jmp .done
+.type_string:
+    mov rax, TYPE_STRING
+    jmp .done
+.type_char:
+    mov rax, TYPE_CHAR
+    jmp .done
+.type_void:
+    mov rax, TYPE_VOID
+    jmp .done
+    
+.done:
+    pop r12
+    pop rbx
+    pop rbp
+    ret
+
+; Helper: string equality check
+; Input: rsi = string1, rbx = string2
+; Output: rax = 1 if equal, 0 otherwise
+string_equal:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    
+    mov r12, rsi
+    mov r13, rbx
+    xor rax, rax
+    
+.compare_loop:
+    movzx r8, byte [r12 + rax]
+    movzx r9, byte [r13 + rax]
+    cmp r8, r9
+    jne .not_equal
+    test r8, r8
+    jz .equal
+    inc rax
+    jmp .compare_loop
+    
+.equal:
+    mov rax, 1
+    jmp .done
+    
+.not_equal:
+    xor rax, rax
+    
+.done:
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
 sema_get_error: mov rax, [sema_error_msg]; ret
 
 sema_error: push rbp; mov rbp, rsp; inc qword [sema_error_count]; mov [sema_error_msg], rsi; pop rbp; ret
+
+; Type name strings for get_type_id_from_name
+str_i8:      db 'i8', 0
+str_i16:     db 'i16', 0
+str_i32:     db 'i32', 0
+str_i64:     db 'i64', 0
+str_u8:      db 'u8', 0
+str_u16:     db 'u16', 0
+str_u32:     db 'u32', 0
+str_u64:     db 'u64', 0
+str_f32:     db 'f32', 0
+str_f64:     db 'f64', 0
+str_bool:    db 'bool', 0
+str_string:  db 'str', 0
+str_char:    db 'char', 0
+str_void:    db 'void', 0
