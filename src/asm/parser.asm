@@ -78,7 +78,7 @@ section .text
     extern malloc, free, memcpy
     extern get_token
     extern token_type, token_value, token_line, token_col
-    extern TOKEN_EOF, TOKEN_NUMBER, TOKEN_STRING, TOKEN_IDENTIFIER
+    extern TOKEN_EOF, TOKEN_NUMBER, TOKEN_STRING, TOKEN_IDENTIFIER, TOKEN_TYPE
     extern TOKEN_KEYWORD, TOKEN_PUNCTUATION, TOKEN_OPERATOR
 
 
@@ -543,12 +543,14 @@ parse_class:
     call parse_function
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
     jmp .class_body
 .parse_construct:
     call parse_constructor
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
     jmp .class_body
 .close:
@@ -691,8 +693,21 @@ parse_function:
     lea rdi, [token_value]
     cmp byte [rdi], '-'
     jne .no_return_type
+
+    ; Support both combined "->" and split "-" ">" tokens
     cmp byte [rdi + 1], '>'
+    je .arrow_combined
+    cmp byte [rdi + 1], 0
     jne .no_return_type
+
+    call advance_token
+    cmp qword [token_type], TOKEN_OPERATOR
+    jne .error
+    lea rdi, [token_value]
+    cmp byte [rdi], '>'
+    jne .error
+
+.arrow_combined:
     call advance_token
     call parse_type
     test rax, rax
@@ -755,6 +770,7 @@ parse_params:
     call parse_single_param
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
 .param_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -766,6 +782,7 @@ parse_params:
     call parse_single_param
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
     jmp .param_loop
 .close:
@@ -837,7 +854,12 @@ parse_type:
     mov rbp, rsp
     push r12
     cmp qword [token_type], TOKEN_KEYWORD
+    je .alloc
+    cmp qword [token_type], TOKEN_TYPE
+    je .alloc
+    cmp qword [token_type], TOKEN_IDENTIFIER
     jne .error
+.alloc:
     call alloc_node
     mov r12, rax
     mov rdi, rax
@@ -891,6 +913,7 @@ parse_block:
     call parse_statement
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
     jmp .block_loop
 .close:
@@ -1738,6 +1761,7 @@ parse_postfix:
     jmp .done
 .parse_call:
     push r12
+    mov rdi, r12
     call parse_call_expr
     pop r13
     test rax, rax
@@ -1754,12 +1778,19 @@ parse_call_expr:
     push rbp
     mov rbp, rsp
     push r12
+    push r13
+    mov r13, rdi
     call alloc_node
     mov r12, rax
     mov rdi, rax
     mov rsi, NODE_CALL_EXPR
     call set_node_type
     mov qword [child_count], 0
+    test r13, r13
+    jz .after_callee
+    mov rdi, r13
+    call add_child
+.after_callee:
     call advance_token
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .check_args
@@ -1770,6 +1801,7 @@ parse_call_expr:
     call parse_expression
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
 .args_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -1781,6 +1813,7 @@ parse_call_expr:
     call parse_expression
     test rax, rax
     jz .close
+    mov rdi, rax
     call add_child
     jmp .args_loop
 .close:
@@ -1794,6 +1827,7 @@ parse_call_expr:
     call build_node
 .done:
     mov rax, r12
+    pop r13
     pop r12
     pop rbp
     ret
@@ -1824,60 +1858,70 @@ parse_primary:
     jmp .parse_ident
 .parse_number:
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_NUMBER
     call set_node_type
     mov esi, [token_line]
     call set_node_line
     lea rsi, [token_value]
-    mov rdi, rax
+    mov rdi, r12
     mov rcx, 64
     call memcpy_str
     call advance_token
+    mov rax, r12
     pop r12
     pop rbp
     ret
 .parse_string:
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_STRING
     call set_node_type
     mov esi, [token_line]
     call set_node_line
     lea rsi, [token_value]
-    mov rdi, rax
+    mov rdi, r12
     mov rcx, 64
     call memcpy_str
     call advance_token
+    mov rax, r12
     pop r12
     pop rbp
     ret
 .parse_true:
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_BOOL
     call set_node_type
     mov byte [rdi + 32], 1
     call advance_token
+    mov rax, r12
     pop r12
     pop rbp
     ret
 .parse_false:
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_BOOL
     call set_node_type
     mov byte [rdi + 32], 0
     call advance_token
+    mov rax, r12
     pop r12
     pop rbp
     ret
 .parse_null:
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_NULL
     call set_node_type
     call advance_token
+    mov rax, r12
     pop r12
     pop rbp
     ret
@@ -1913,6 +1957,7 @@ parse_primary:
     call parse_expression
     test rax, rax
     jz .close_new
+    mov rdi, rax
     call add_child
 .new_args_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -1924,6 +1969,7 @@ parse_primary:
     call parse_expression
     test rax, rax
     jz .close_new
+    mov rdi, rax
     call add_child
     jmp .new_args_loop
 .close_new:
@@ -1944,16 +1990,18 @@ parse_primary:
     cmp qword [token_type], TOKEN_IDENTIFIER
     jne .parse_group
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_IDENTIFIER
     call set_node_type
     mov esi, [token_line]
     call set_node_line
     lea rsi, [token_value]
-    mov rdi, rax
+    mov rdi, r12
     mov rcx, 64
     call memcpy_str
     call advance_token
+    mov rax, r12
     pop r12
     pop rbp
     ret
