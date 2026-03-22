@@ -1,0 +1,167 @@
+#!/bin/bash
+
+VERSION="0.1.0"
+COMPILER=""
+OPT_LEVEL="-O1"
+OUTPUT_FILE=""
+INPUT_FILE=""
+EXECUTE_ONLY=""
+COMPILE_ONLY=""
+ASM_ONLY=""
+HELP_MODE=""
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                HELP_MODE=1
+                return 0
+                ;;
+            -v|--version)
+                echo "kodpix $VERSION"
+                exit 0
+                ;;
+            -c)
+                COMPILE_ONLY=1
+                shift
+                ;;
+            -x)
+                EXECUTE_ONLY=1
+                shift
+                ;;
+            -S)
+                ASM_ONLY=1
+                shift
+                ;;
+            -O0|-O1|-O2)
+                OPT_LEVEL="$1"
+                shift
+                ;;
+            -in)
+                INPUT_FILE="$2"
+                shift 2
+                ;;
+            -o)
+                OUTPUT_FILE="$2"
+                shift 2
+                ;;
+            -*)
+                echo "kodpix: unknown option: $1" >&2
+                exit 1
+                ;;
+            *)
+                if [[ -z "$INPUT_FILE" ]]; then
+                    INPUT_FILE="$1"
+                else
+                    echo "kodpix: unexpected argument: $1" >&2
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+}
+
+show_help() {
+    cat << 'EOF'
+Usage: kodpix [options]
+  -c              Compile only (no execute)
+  -x              Execute after compilation
+  -in <file>      Input file (.kdx)
+  -o <file>       Output file (.bin for Linux, .exe for Windows)
+  -S              Generate assembly only (.s)
+  -O0, -O1, -O2   Optimization level
+  -h, --help      Show help
+  -v, --version   Show version
+EOF
+}
+
+find_compiler() {
+    if [[ -x "./kdx" ]]; then
+        COMPILER="./kdx"
+    elif [[ -x "$HOME/.local/bin/kdx" ]]; then
+        COMPILER="$HOME/.local/bin/kdx"
+    else
+        echo "kodpix: compiler not found (./kdx or ~/.local/bin/kdx)" >&2
+        exit 1
+    fi
+}
+
+detect_platform() {
+    case "$(uname -s)" in
+        Linux*)     EXT="bin" ;;
+        MINGW*|MSYS*|CYGWIN*)  EXT="exe" ;;
+        *)          EXT="bin" ;;
+    esac
+}
+
+run() {
+    if [[ -n "$EXECUTE_ONLY" ]]; then
+        if [[ ! -x "$OUTPUT_FILE" ]]; then
+            echo "kodpix: output file not found or not executable: $OUTPUT_FILE" >&2
+            exit 1
+        fi
+        "$OUTPUT_FILE"
+        return $?
+    fi
+    return 0
+}
+
+main() {
+    parse_args "$@"
+
+    if [[ -n "$HELP_MODE" ]]; then
+        show_help
+        exit 0
+    fi
+
+    if [[ -z "$INPUT_FILE" ]]; then
+        echo "kodpix: no input file specified" >&2
+        echo "Run 'kodpix --help' for usage." >&2
+        exit 1
+    fi
+
+    if [[ ! -f "$INPUT_FILE" ]]; then
+        echo "kodpix: file not found: $INPUT_FILE" >&2
+        exit 1
+    fi
+
+    if [[ ! "$INPUT_FILE" =~ \.kdx$ ]]; then
+        echo "kodpix: input file must have .kdx extension" >&2
+        exit 1
+    fi
+
+    find_compiler
+
+    if [[ -z "$OUTPUT_FILE" ]]; then
+        detect_platform
+        BASE_NAME="${INPUT_FILE%.kdx}"
+        OUTPUT_FILE="${BASE_NAME}.${EXT}"
+    fi
+
+    if [[ -n "$ASM_ONLY" ]]; then
+        if [[ ! "$OUTPUT_FILE" =~ \.s$ ]]; then
+            OUTPUT_FILE="${OUTPUT_FILE%.bin}.s"
+            [[ ! "$OUTPUT_FILE" =~ \.s$ ]] && OUTPUT_FILE="${OUTPUT_FILE}.s"
+        fi
+        if ! "$COMPILER" "$INPUT_FILE" -S -o "$OUTPUT_FILE"; then
+            echo "kodpix: assembly generation failed" >&2
+            exit 1
+        fi
+    elif [[ -n "$COMPILE_ONLY" ]]; then
+        if ! "$COMPILER" "$INPUT_FILE" -c -o "$OUTPUT_FILE"; then
+            echo "kodpix: compilation failed" >&2
+            exit 1
+        fi
+    else
+        if ! "$COMPILER" "$INPUT_FILE" -o "$OUTPUT_FILE"; then
+            echo "kodpix: compilation failed" >&2
+            exit 1
+        fi
+        chmod +x "$OUTPUT_FILE"
+    fi
+
+    run
+}
+
+main "$@"
