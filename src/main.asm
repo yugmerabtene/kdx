@@ -380,6 +380,9 @@ main:
 read_file:
     push rbp
     mov rbp, rsp
+    push r12
+    push r14
+    push r15
     mov r15, rdi
     mov r14, rsi
 
@@ -399,7 +402,7 @@ read_file:
     syscall
     mov [source_len], rax
 
-    cmp rax, 16384
+    cmp rax, 16383
     jg .error
     
     mov rdi, [file_fd]
@@ -408,11 +411,28 @@ read_file:
     mov rax, 8
     syscall
 
+    xor r12, r12
+
+.read_loop:
+    cmp r12, [source_len]
+    jge .read_done
+
     mov rdi, [file_fd]
     mov rsi, r14
+    add rsi, r12
     mov rdx, [source_len]
+    sub rdx, r12
     mov rax, 0
     syscall
+    cmp rax, 0
+    jle .read_error
+
+    add r12, rax
+    jmp .read_loop
+
+.read_done:
+    mov [source_len], r12
+    mov byte [r14 + r12], 0
 
     mov rdi, [file_fd]
     mov rax, 3
@@ -421,10 +441,19 @@ read_file:
     xor rax, rax
     jmp .exit
 
+.read_error:
+    mov rdi, [file_fd]
+    mov rax, 3
+    syscall
+    jmp .error
+
 .error:
     mov rax, 5
 
 .exit:
+    pop r15
+    pop r14
+    pop r12
     pop rbp
     ret
 

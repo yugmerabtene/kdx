@@ -53,6 +53,8 @@ section .data
     NODE_HEADER_SIZE     equ 24
     NODE_SIZE            equ 128
     NODE_POOL_COUNT      equ 512
+    MAX_CHILD_DEPTH      equ 64
+    CHILD_FRAME_SIZE     equ 72
 
 section .bss
     parser_pos:          resq 1
@@ -66,6 +68,8 @@ section .bss
     node_free_head:      resq 1
     children_buf:        resq 8
     child_count:         resq 1
+    child_frame_depth:   resq 1
+    children_frames:     resb MAX_CHILD_DEPTH * CHILD_FRAME_SIZE
 
 section .data
 
@@ -94,6 +98,7 @@ parser_init:
     mov [ast_root], rax
     mov [node_count], rax
     mov [child_count], rax
+    mov [child_frame_depth], rax
     call init_node_pool
     pop rbp
     ret
@@ -129,23 +134,12 @@ alloc_node:
 .from_pool:
     mov rcx, [rax]
     mov [node_free_head], rcx
-    xor rcx, rcx
-    mov [rax], rcx
-    mov [rax + 8], rcx
-    mov [rax + 16], rcx
-    mov qword [rax + 24], 0
-    mov qword [rax + 32], 0
-    mov qword [rax + 40], 0
-    mov qword [rax + 48], 0
-    mov qword [rax + 56], 0
-    mov qword [rax + 64], 0
-    mov qword [rax + 72], 0
-    mov qword [rax + 80], 0
-    mov qword [rax + 88], 0
-    mov qword [rax + 96], 0
-    mov qword [rax + 104], 0
-    mov qword [rax + 112], 0
-    mov qword [rax + 120], 0
+    mov rdx, rax
+    mov rdi, rax
+    xor eax, eax
+    mov rcx, NODE_SIZE / 8
+    rep stosq
+    mov rax, rdx
     inc qword [node_count]
     pop rbp
     ret
@@ -302,6 +296,78 @@ skip_semicolon:
 .ret:
     ret
 
+push_child_context:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+
+    mov r12, [child_frame_depth]
+    cmp r12, MAX_CHILD_DEPTH
+    jge .reset
+
+    mov rax, r12
+    imul rax, CHILD_FRAME_SIZE
+    lea r13, [children_frames + rax]
+
+    mov rax, [child_count]
+    mov [r13], rax
+
+    xor rcx, rcx
+.save_loop:
+    cmp rcx, 8
+    jge .saved
+    mov rax, [children_buf + rcx * 8]
+    mov [r13 + 8 + rcx * 8], rax
+    inc rcx
+    jmp .save_loop
+
+.saved:
+    inc qword [child_frame_depth]
+
+.reset:
+    mov qword [child_count], 0
+
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
+pop_child_context:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+
+    mov r12, [child_frame_depth]
+    test r12, r12
+    jz .done
+
+    dec r12
+    mov [child_frame_depth], r12
+
+    mov rax, r12
+    imul rax, CHILD_FRAME_SIZE
+    lea r13, [children_frames + rax]
+
+    mov rax, [r13]
+    mov [child_count], rax
+
+    xor rcx, rcx
+.restore_loop:
+    cmp rcx, 8
+    jge .done
+    mov rax, [r13 + 8 + rcx * 8]
+    mov [children_buf + rcx * 8], rax
+    inc rcx
+    jmp .restore_loop
+
+.done:
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
 add_child:
     push rbp
     mov rbp, rsp
@@ -371,6 +437,7 @@ build_node:
 parse_program:
     push rbp
     mov rbp, rsp
+    call push_child_context
     call alloc_node
     mov qword [ast_root], rax
     
@@ -389,17 +456,10 @@ parse_program:
     jmp .parse_loop
 
 .alloc_failed:
+    call pop_child_context
     xor rax, rax
     pop rbp
     ret
-    mov rdi, rax
-    mov rsi, NODE_PROGRAM
-    call set_node_type
-    mov esi, 1
-    call set_node_line
-    mov qword [child_count], 0
-    call get_token
-    mov [token_type], rax
 .parse_loop:
     cmp qword [token_type], TOKEN_EOF
     je .done
@@ -443,6 +503,7 @@ parse_program:
 .done:
     mov rdi, [ast_root]
     call build_node
+    call pop_child_context
     ; Return 0 for success (AST root is stored in ast_root)
     xor rax, rax
     pop rbp
@@ -487,7 +548,7 @@ parse_class:
     mov rbp, rsp
     push r12
     push r13
-    mov r12, rax
+    call push_child_context
     cmp qword [token_type], TOKEN_KEYWORD
     jne .error
     lea rdi, [token_value]
@@ -560,12 +621,14 @@ parse_class:
     call expect_punct
     mov rdi, r13
     call build_node
+    call pop_child_context
     mov rax, r13
     pop r13
     pop r12
     pop rbp
     ret
 .error:
+    call pop_child_context
     xor rax, rax
     pop r13
     pop r12
@@ -753,6 +816,7 @@ parse_params:
     push rbp
     mov rbp, rsp
     push r12
+    call push_child_context
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .error
     lea rdi, [token_value]
@@ -800,6 +864,7 @@ parse_params:
     call advance_token
     mov rdi, r12
     call build_node
+    call pop_child_context
     mov rax, r12
     pop r12
     pop rbp
@@ -807,11 +872,13 @@ parse_params:
 .done:
     mov rdi, r12
     call build_node
+    call pop_child_context
     mov rax, r12
     pop r12
     pop rbp
     ret
 .error:
+    call pop_child_context
     xor rax, rax
     pop r12
     pop rbp
@@ -893,6 +960,7 @@ parse_block:
     push rbp
     mov rbp, rsp
     push r12
+    call push_child_context
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .error
     lea rdi, [token_value]
@@ -931,6 +999,7 @@ parse_block:
     call advance_token
     mov rdi, r12
     call build_node
+    call pop_child_context
     mov rax, r12
     pop r12
     pop rbp
@@ -938,11 +1007,13 @@ parse_block:
 .done:
     mov rdi, r12
     call build_node
+    call pop_child_context
     mov rax, r12
     pop r12
     pop rbp
     ret
 .error:
+    call pop_child_context
     xor rax, rax
     pop r12
     pop rbp
@@ -1809,6 +1880,7 @@ parse_call_expr:
     mov rbp, rsp
     push r12
     push r13
+    call push_child_context
     mov r13, rdi
     call alloc_node
     mov r12, rax
@@ -1856,6 +1928,7 @@ parse_call_expr:
     mov rdi, r12
     call build_node
 .done:
+    call pop_child_context
     mov rax, r12
     pop r13
     pop r12
@@ -1961,6 +2034,7 @@ parse_primary:
     jne .error
     call alloc_node
     mov r12, rax
+    call push_child_context
     mov rdi, rax
     mov rsi, NODE_NEW_EXPR
     call set_node_type
@@ -2012,6 +2086,7 @@ parse_primary:
     mov rdi, r12
     call build_node
 .done_new:
+    call pop_child_context
     mov rax, r12
     pop r12
     pop rbp
