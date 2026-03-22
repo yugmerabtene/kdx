@@ -85,6 +85,7 @@ Build and test locally:
 `test.sh` now includes:
 
 - positive smoke checks for `-S`, `-c`, and full compile/run
+- control-flow assembly generation check (`examples/control_flow.kdx`)
 - negative CLI checks (invalid flag, missing input, missing file)
 - oversized input rejection checks for lexer buffer safety
 

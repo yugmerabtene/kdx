@@ -649,7 +649,7 @@ codegen_while:
     call push_loop
 
     mov rdi, r14
-    call emit_label_name
+    call emit_label_def
 
     mov r13, [r12 + 32]             ; condition
 
@@ -1707,6 +1707,22 @@ generate_label:
     jmp .len_loop
 
 .len_done:
+    cmp qword [label_pool_pos], 4000
+    jl .store_len
+    mov qword [label_pool_pos], 0
+    mov rbx, 0
+    lea r12, [label_pool]
+    mov byte [r12], 'L'
+    lea rdi, [r12 + 1]
+    call int_to_str
+    xor rcx, rcx
+.reset_len_loop:
+    cmp byte [r12 + rcx], 0
+    je .store_len
+    inc rcx
+    jmp .reset_len_loop
+
+.store_len:
     add [label_pool_pos], rcx
     inc qword [label_pool_pos]
 
@@ -2238,6 +2254,7 @@ int_to_str:
     push r12
     push r13
     push r14
+    push r15
 
     mov r12, rdi                    ; buffer
     mov r13, rax                    ; number
@@ -2251,21 +2268,19 @@ int_to_str:
     jmp .done
 
 .convert:
-    push rax
     mov rax, r13
-    xor rdx, rdx
     mov r15, 10
 .div_loop:
+    xor rdx, rdx
     div r15
     add dl, '0'
     push rdx
     inc r14
-    xor rdx, rdx
     test rax, rax
     jnz .div_loop
-    pop rax
 
 .print_loop:
+    pop rax
     mov [r12], al
     inc r12
     dec r14
@@ -2274,6 +2289,7 @@ int_to_str:
 .done:
     mov byte [r12], 0
 
+    pop r15
     pop r14
     pop r13
     pop r12
