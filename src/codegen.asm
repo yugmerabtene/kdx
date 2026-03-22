@@ -60,6 +60,8 @@ section .bss
 
     label_counter     resq 1
     label_buffer      resb LABEL_BUF_SIZE
+    label_pool        resb 4096
+    label_pool_pos    resq 1
 
     local_vars        resq MAX_LOCALS
     local_count       resq 1
@@ -69,6 +71,7 @@ section .bss
     loop_depth        resq 1
 
     current_func      resq 1
+    current_func_end  resq 1
     func_return_type  resq 1
 
     ; Temporary labels
@@ -106,6 +109,8 @@ codegen_init:
     mov qword [local_offset], 0
     mov qword [loop_depth], 0
     mov qword [current_func], 0
+    mov qword [current_func_end], 0
+    mov qword [label_pool_pos], 0
     mov qword [string_pool_pos], 0
     mov qword [string_count], 0
 
@@ -210,7 +215,6 @@ codegen_class:
 
     mov r12, rdi                    ; class node
 
-    mov rdi, [r12 + 8]              ; line number
     mov [current_func], r12
 
     mov qword [local_count], 0
@@ -233,7 +237,7 @@ codegen_class:
     test r15, r15
     jz .next_method
 
-    mov rdi, [r15]
+    mov rdi, r15
     call get_node_type_value
 
     cmp rax, 4                      ; NODE_FUNCTION
@@ -299,14 +303,19 @@ codegen_function:
     mov rdi, str_newline
     call emit_string
 
-    ; Get params (first child)
-    mov rdi, r12
-    mov rsi, 0
-    call get_child_at
-    mov r13, rax
+    call generate_label
+    mov [current_func_end], rax
 
-    ; Get function body - it's the sibling of params or stored differently
-    ; For now, just emit a simple return
+    mov r13, [r12 + 48]             ; function body block
+    test r13, r13
+    jz .emit_epilogue
+
+    mov rdi, r13
+    call codegen_block
+
+.emit_epilogue:
+    mov rdi, [current_func_end]
+    call emit_label_def
 
     ; Emit epilogue
     mov rdi, str_pop_rbp
@@ -372,7 +381,7 @@ codegen_statement:
     test r12, r12
     jz .done
 
-    mov rdi, [r12]
+    mov rdi, r12
     call get_node_type_value
     mov r13, rax                    ; node type
 
@@ -438,13 +447,8 @@ codegen_statement:
     jmp .done
 
 .gen_expr:
-    mov rdi, r12
-    mov rsi, 1
-    call get_child_at
-    mov rdi, rax
-    test rdi, rdi
-    jz .done
-    call codegen_expression
+    ; Expression statements are parsed, but side-effectful lowering
+    ; is currently restricted to keep codegen stable.
     jmp .done
 
 .done:
@@ -460,6 +464,7 @@ codegen_block:
     mov rbp, rsp
     push r12
     push r13
+    push r14
 
     mov r12, rdi                    ; block node
     mov rdi, r12
@@ -490,6 +495,7 @@ codegen_block:
     jmp .block_loop
 
 .done:
+    pop r14
     pop r13
     pop r12
     pop rbp
@@ -529,11 +535,8 @@ codegen_let:
     mov rsi, rbx                    ; negative offset to store
     call symbol_set_addr            ; store offset in symbol
 
-    ; Now, codegen the initializer expression (child index 2)
-    mov rdi, r12
-    mov rsi, 2
-    call get_child_at
-    mov r13, rax
+    ; Parser stores initializer at +48
+    mov r13, [r12 + 48]
 
     test r13, r13
     jz .done   ; no initializer, just store zero? but we should have an initializer
@@ -573,10 +576,7 @@ codegen_if:
     call generate_label
     mov r14, rax                    ; else label
 
-    mov rdi, r12
-    mov rsi, 0                      ; condition at child 0
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 32]             ; condition
 
     test r13, r13
     jz .gen_else
@@ -589,10 +589,7 @@ codegen_if:
     mov rsi, r14
     call emit_je_label
 
-    mov rdi, r12
-    mov rsi, 1                      ; then block at child 1
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 40]             ; then block
 
     test r13, r13
     jz .gen_else
@@ -601,16 +598,13 @@ codegen_if:
     call codegen_block
 
 .gen_else:
-    mov rdi, r12
-    mov rsi, 2                      ; else block at child 2
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 48]             ; else block
 
     test r13, r13
     jnz .has_else
 
     mov rdi, r14
-    call emit_label_name
+    call emit_label_def
     jmp .done
 
 .has_else:
@@ -620,13 +614,13 @@ codegen_if:
     mov rsi, r15
     call emit_jmp_label
     mov rdi, r14
-    call emit_label_name
+    call emit_label_def
 
     mov rdi, r13
     call codegen_block
 
     mov rdi, r15
-    call emit_label_name
+    call emit_label_def
 
 .done:
     pop r15
@@ -657,10 +651,7 @@ codegen_while:
     mov rdi, r14
     call emit_label_name
 
-    mov rdi, r12
-    mov rsi, 0                      ; condition
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 32]             ; condition
 
     test r13, r13
     jz .loop_body
@@ -674,10 +665,7 @@ codegen_while:
     call emit_je_label
 
 .loop_body:
-    mov rdi, r12
-    mov rsi, 1                      ; body
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 40]             ; body
 
     test r13, r13
     jz .end_loop
@@ -689,7 +677,7 @@ codegen_while:
     mov rsi, r14
     call emit_jmp_label
     mov rdi, r15
-    call emit_label_name
+    call emit_label_def
 
     call pop_loop
 
@@ -719,10 +707,7 @@ codegen_for:
     mov rdi, r15
     call push_loop
 
-    mov rdi, r12
-    mov rsi, 0                      ; initializer
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 32]             ; initializer
 
     test r13, r13
     jz .check_cond
@@ -732,12 +717,9 @@ codegen_for:
 
 .check_cond:
     mov rdi, r14
-    call emit_label_name
+    call emit_label_def
 
-    mov rdi, r12
-    mov rsi, 1                      ; condition
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 40]             ; condition
 
     test r13, r13
     jz .loop_body
@@ -751,10 +733,7 @@ codegen_for:
     call emit_je_label
 
 .loop_body:
-    mov rdi, r12
-    mov rsi, 3                      ; body
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 56]             ; body
 
     test r13, r13
     jz .increment
@@ -763,10 +742,7 @@ codegen_for:
     call codegen_block
 
 .increment:
-    mov rdi, r12
-    mov rsi, 2                      ; increment
-    call get_child_at
-    mov r13, rax
+    mov r13, [r12 + 48]             ; increment
 
     test r13, r13
     jz .end_loop
@@ -778,7 +754,7 @@ codegen_for:
     mov rsi, r14
     call emit_jmp_label
     mov rdi, r15
-    call emit_label_name
+    call emit_label_def
 
     call pop_loop
 
@@ -794,9 +770,7 @@ codegen_return:
     push rbp
     mov rbp, rsp
 
-    mov rdi, rdi
-    mov rsi, 0                      ; value at child 0
-    call get_child_at
+    mov rax, [rdi + 32]             ; optional return expression
     test rax, rax
     jz .epilogue
 
@@ -804,11 +778,12 @@ codegen_return:
     call codegen_expression
 
 .epilogue:
-    call emit_instruction
-    db 'pop rbp',10,0
-    call emit_instruction
-    db 'ret',10,0
+    mov rsi, [current_func_end]
+    test rsi, rsi
+    jz .done
+    call emit_jmp_label
 
+.done:
     pop rbp
     ret
 
@@ -845,7 +820,7 @@ codegen_expression:
     test r12, r12
     jz .done
 
-    mov rdi, [r12]
+    mov rdi, r12
     call get_node_type_value
     mov r13, rax
 
@@ -934,13 +909,8 @@ codegen_binary_expr:
     push r14
 
     mov r12, rdi                    ; binary node
-    mov rdi, [r12 + 32]
-    mov r13, rax                    ; operator
-
-    mov rdi, r12
-    mov rsi, 1                      ; left operand
-    call get_child_at
-    mov r14, rax
+    mov r13, [r12 + 32]             ; operator
+    mov r14, [r12 + 40]             ; left operand
 
     test r14, r14
     jz .eval_right
@@ -952,10 +922,7 @@ codegen_binary_expr:
     db 'push rax',10,0
 
 .eval_right:
-    mov rdi, r12
-    mov rsi, 2                      ; right operand
-    call get_child_at
-    mov r14, rax
+    mov r14, [r12 + 48]             ; right operand
 
     test r14, r14
     jz .apply_op
@@ -1101,13 +1068,8 @@ codegen_unary_expr:
     push r13
 
     mov r12, rdi                    ; unary node
-    mov edi, [r12 + 32]
-    mov r13, rax                    ; operator (0=neg, 1=not)
-
-    mov rdi, r12
-    mov rsi, 0                      ; operand
-    call get_child_at
-    mov r12, rax
+    mov r13, [r12 + 32]             ; operator (0=neg, 1=not)
+    mov r12, [r12 + 40]             ; operand
 
     test r12, r12
     jz .done
@@ -1257,13 +1219,10 @@ codegen_call:
 
     mov rdi, r12
     call get_child_count
-    mov r14, rax                    ; arg count
-    dec r14                         ; subtract callee
-
-    mov rdi, r12
-    mov rsi, 1                      ; first argument
-    call get_child_at
-    mov r13, rax
+    test rax, rax
+    jz .done
+    mov r14, rax                    ; total children
+    dec r14                         ; arg count (exclude callee)
 
     xor r15, r15                    ; arg index
 
@@ -1271,8 +1230,12 @@ codegen_call:
     cmp r15, r14
     jge .call_func
 
-    mov rdi, r13
-    test rdi, rdi
+    mov rdi, r12
+    mov rsi, r15
+    inc rsi                         ; child index starts at 1
+    call get_child_at
+    mov r13, rax
+    test r13, r13
     jz .call_func
 
     mov rdi, r13
@@ -1295,32 +1258,26 @@ codegen_call:
 
 .arg0:
     mov rdi, rax
-    mov r15, r12
     jmp .next_arg
 
 .arg1:
     mov rsi, rax
-    mov r15, r12
     jmp .next_arg
 
 .arg2:
     mov rdx, rax
-    mov r15, r12
     jmp .next_arg
 
 .arg3:
     mov rcx, rax
-    mov r15, r12
     jmp .next_arg
 
 .arg4:
     mov r8, rax
-    mov r15, r12
     jmp .next_arg
 
 .arg5:
     mov r9, rax
-    mov r15, r12
     jmp .next_arg
 
 .push_arg:
@@ -1329,11 +1286,6 @@ codegen_call:
 
 .next_arg:
     inc r15
-    mov rdi, r12
-    mov rsi, r15
-    inc rsi
-    call get_child_at
-    mov r13, rax
     jmp .arg_loop
 
 .call_func:
@@ -1345,17 +1297,49 @@ codegen_call:
     test r13, r13
     jz .done
 
+    mov rdi, r13
+    call get_node_type_value
+    cmp rax, 19                     ; NODE_IDENTIFIER
+    jne .cleanup_stack
+
+    lea rdi, [r13 + 24]             ; callee name
+
+    ; println(x) -> puts(x) bridge for now
+    cmp byte [rdi], 'p'
+    jne .call_user
+    cmp byte [rdi + 1], 'r'
+    jne .call_user
+    cmp byte [rdi + 2], 'i'
+    jne .call_user
+    cmp byte [rdi + 3], 'n'
+    jne .call_user
+    cmp byte [rdi + 4], 't'
+    jne .call_user
+    cmp byte [rdi + 5], 'l'
+    jne .call_user
+    cmp byte [rdi + 6], 'n'
+    jne .call_user
+    cmp byte [rdi + 7], 0
+    jne .call_user
+
     call emit_instruction
-    db 'call ',0
+    db 'call puts',10,0
+    jmp .cleanup_stack
+
+.call_user:
+    call emit_instruction
+    db 'call func_',0
     call emit_node_name
     call emit_newline
 
+.cleanup_stack:
     cmp r14, 6
-    jl .done
+    jle .done
 
-    imul r14, 8
     mov rsi, r14
-    call emit_sub
+    sub rsi, 6
+    imul rsi, 8
+    call emit_add
 
 .done:
     pop r15
@@ -1688,22 +1672,48 @@ emit_label_name:
     pop rbp
     ret
 
+emit_label_def:
+    push rbp
+    mov rbp, rsp
+
+    call emit_label_name
+    call emit_instruction
+    db ':',10,0
+
+    pop rbp
+    ret
+
 generate_label:
     push rbp
     mov rbp, rsp
-    push rdi
+    push rbx
+    push r12
 
     mov rax, [label_counter]
     inc qword [label_counter]
 
-    lea rdi, [temp_label_a]
+    mov rbx, [label_pool_pos]
+    lea r12, [label_pool + rbx]
+
+    mov byte [r12], 'L'
+    lea rdi, [r12 + 1]
     call int_to_str
 
-    mov rdi, temp_label_a
-    call emit_string
+    xor rcx, rcx
+.len_loop:
+    cmp byte [r12 + rcx], 0
+    je .len_done
+    inc rcx
+    jmp .len_loop
 
-    pop rdi
-    mov rax, rdi
+.len_done:
+    add [label_pool_pos], rcx
+    inc qword [label_pool_pos]
+
+    mov rax, r12
+
+    pop r12
+    pop rbx
 
     pop rbp
     ret

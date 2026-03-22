@@ -15,7 +15,7 @@ section .data
     TOKEN_PUNCTUATION equ 7
     TOKEN_COMMENT     equ 8
 
-    KEYWORD_COUNT     equ 25
+    KEYWORD_COUNT     equ 28
     TYPE_COUNT        equ 10
 
     kw_let        : db 'let',0
@@ -35,6 +35,8 @@ section .data
     kw_while      : db 'while',0
     kw_for        : db 'for',0
     kw_return     : db 'return',0
+    kw_break      : db 'break',0
+    kw_continue   : db 'continue',0
     kw_import     : db 'import',0
     kw_extends    : db 'extends',0
     kw_super      : db 'super',0
@@ -74,6 +76,8 @@ section .data
         dq kw_while, 5
         dq kw_for, 3
         dq kw_return, 6
+        dq kw_break, 5
+        dq kw_continue, 8
         dq kw_import, 6
         dq kw_extends, 7
         dq kw_super, 5

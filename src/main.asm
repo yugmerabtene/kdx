@@ -21,9 +21,9 @@ section .data
     shell_cmd    db '/bin/sh', 0
     shell_args   db '-c', 0
     null_ptr     dq 0
-nasm_fmt     db 'nasm -f elf64 %s -o %s', 0
-ld_fmt       db 'ld -o %s %s', 0
-exec_fmt     db '%s', 0
+nasm_fmt     db 'nasm -f elf64 "%s" -o "%s"', 0
+ld_fmt       db 'ld -o "%s" "%s"', 0
+exec_fmt     db '"%s"', 0
 default_bin_file db 'test_output', 0
 default_asm_file db 'test_output.s', 0
 default_obj_file db 'test_output.o', 0
@@ -32,6 +32,8 @@ tmp_obj_file db 'test_output.o', 0
 no_input_msg db 'no input file specified', 10, 0
 multiple_inputs_msg db 'multiple input files specified', 10, 0
 invalid_flag_msg db 'invalid command line option', 10, 0
+flag_combo_msg db 'incompatible option combination', 10, 0
+exec_error_msg db 'execution failed', 10, 0
 read_error_msg db 'failed to read input file', 10, 0
 parse_error_msg db 'syntax error', 10, 0
 sema_error_msg db 'semantic error', 10, 0
@@ -152,6 +154,8 @@ main:
     jz .invalid_flag
     add rbx, 8
     mov rax, [rbx]
+    cmp byte [rax], '-'
+    je .invalid_flag
     mov [output_file], rax
     jmp .next_arg
 
@@ -183,13 +187,27 @@ main:
 
 .after_parse:
     cmp byte [help_only], 1
-    jne .check_input
+    jne .check_flag_combo
     lea rdi, [rel usage_msg]
     call print_string
     xor rax, rax
     jmp .exit
 
+.check_flag_combo:
+    cmp byte [asm_only], 1
+    jne .check_input
+    cmp byte [compile_only], 1
+    je .invalid_combo
+    cmp byte [exec_after], 1
+    je .invalid_combo
+
 .check_input:
+    cmp byte [compile_only], 1
+    jne .check_input_file
+    cmp byte [exec_after], 1
+    je .invalid_combo
+
+.check_input_file:
     cmp qword [input_file], 0
     jne .pipeline
     lea rdi, [rel no_input_msg]
@@ -327,6 +345,12 @@ main:
     cmp byte [exec_after], 1
     jne .success
     call execute_binary
+    test rax, rax
+    jz .success
+    lea rdi, [rel exec_error_msg]
+    call print_error
+    mov rax, 1
+    jmp .exit
 
 .success:
     xor rax, rax
@@ -340,6 +364,12 @@ main:
 
 .invalid_flag:
     lea rdi, [rel invalid_flag_msg]
+    call print_error
+    mov rax, 1
+    jmp .exit
+
+.invalid_combo:
+    lea rdi, [rel flag_combo_msg]
     call print_error
     mov rax, 1
 
@@ -368,6 +398,9 @@ read_file:
     mov rax, 8
     syscall
     mov [source_len], rax
+
+    cmp rax, 16384
+    jg .error
     
     mov rdi, [file_fd]
     xor rsi, rsi
@@ -492,13 +525,16 @@ assemble_with_nasm:
 .do_assemble:
     ; Build nasm command: nasm -f elf64 <asm_file> -o <obj_file>
     mov rdi, nasm_cmd_buf
-    mov rsi, nasm_fmt
-    mov rdx, [asm_file]
-    mov rcx, [obj_file]
+    mov rsi, 512
+    mov rdx, nasm_fmt
+    mov rcx, [asm_file]
+    mov r8, [obj_file]
     xor eax, eax
-    call sprintf
-    test rax, rax
-    jz .error
+    call snprintf
+    cmp rax, 0
+    jl .error
+    cmp rax, 511
+    jge .error
 
     mov rdi, nasm_cmd_buf
     call system
@@ -522,13 +558,16 @@ link_with_ld:
 .do_link:
     ; Build ld command: ld -o <output> <obj_file>
     mov rdi, ld_cmd_buf
-    mov rsi, ld_fmt
-    mov rdx, [output_file]
-    mov rcx, [obj_file]
+    mov rsi, 512
+    mov rdx, ld_fmt
+    mov rcx, [output_file]
+    mov r8, [obj_file]
     xor eax, eax
-    call sprintf
-    test rax, rax
-    jz .error
+    call snprintf
+    cmp rax, 0
+    jl .error
+    cmp rax, 511
+    jge .error
 
     mov rdi, ld_cmd_buf
     call system
@@ -555,18 +594,26 @@ execute_binary:
 
     mov rdi, [input_file]
     call replace_extension
+    mov [output_file], rax
 
 .do_exec:
     mov rdi, exec_cmd_buf
-    mov rsi, exec_fmt
-    mov rdx, [output_file]
+    mov rsi, 512
+    mov rdx, exec_fmt
+    mov rcx, [output_file]
     xor eax, eax
-    call sprintf
-    test rax, rax
-    jz .error
+    call snprintf
+    cmp rax, 0
+    jl .error
+    cmp rax, 511
+    jge .error
 
     mov rdi, exec_cmd_buf
     call system
+    test rax, rax
+    jnz .error
+
+    xor rax, rax
 
     pop rbp
     ret

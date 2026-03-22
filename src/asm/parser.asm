@@ -457,8 +457,8 @@ parse_program:
 parse_import:
     push rbp
     mov rbp, rsp
+    lea rsi, [rel .import_kw]
     call expect_keyword
-    db "import", 0
     cmp qword [token_type], TOKEN_STRING
     jne .error
     call alloc_node
@@ -479,6 +479,8 @@ parse_import:
     xor rax, rax
     pop rbp
     ret
+.import_kw:
+    db "import", 0
 
 parse_class:
     push rbp
@@ -509,8 +511,8 @@ parse_class:
     mov rcx, 64
     call memcpy_str
     call advance_token
+    lea rsi, [rel .open_brace]
     call expect_punct
-    db "{", 0
     mov qword [child_count], 0
 .class_body:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -554,8 +556,8 @@ parse_class:
     call add_child
     jmp .class_body
 .close:
+    lea rsi, [rel .close_brace]
     call expect_punct
-    db "}", 0
     mov rdi, r13
     call build_node
     mov rax, r13
@@ -579,6 +581,10 @@ parse_class:
     db "protected", 0
 .construct_kw:
     db "_construct", 0
+.open_brace:
+    db "{", 0
+.close_brace:
+    db "}", 0
 
 parse_constructor:
     push rbp
@@ -1106,14 +1112,14 @@ parse_if_stmt:
     test rax, rax
     jnz .error
     call advance_token
+    lea rsi, [rel .open_paren]
     call expect_punct
-    db "(", 0
     call parse_expression
     test rax, rax
     jz .error
     mov r12, rax
+    lea rsi, [rel .close_paren]
     call expect_punct
-    db ")", 0
     call parse_block
     test rax, rax
     jz .error
@@ -1157,6 +1163,10 @@ parse_if_stmt:
     db "if", 0
 .else_kw:
     db "else", 0
+.open_paren:
+    db "(", 0
+.close_paren:
+    db ")", 0
 
 parse_while_stmt:
     push rbp
@@ -1171,14 +1181,14 @@ parse_while_stmt:
     test rax, rax
     jnz .error
     call advance_token
+    lea rsi, [rel .open_paren]
     call expect_punct
-    db "(", 0
     call parse_expression
     test rax, rax
     jz .error
     mov r12, rax
+    lea rsi, [rel .close_paren]
     call expect_punct
-    db ")", 0
     call parse_block
     test rax, rax
     jz .error
@@ -1203,6 +1213,10 @@ parse_while_stmt:
     ret
 .while_kw:
     db "while", 0
+.open_paren:
+    db "(", 0
+.close_paren:
+    db ")", 0
 
 parse_for_stmt:
     push rbp
@@ -1219,26 +1233,26 @@ parse_for_stmt:
     test rax, rax
     jnz .error
     call advance_token
+    lea rsi, [rel .open_paren]
     call expect_punct
-    db "(", 0
     call parse_let_decl
     test rax, rax
     jz .error
     mov r12, rax
+    lea rsi, [rel .semi]
     call expect_punct
-    db ";", 0
     call parse_expression
     test rax, rax
     jz .error
     mov r13, rax
+    lea rsi, [rel .semi]
     call expect_punct
-    db ";", 0
     call parse_expression
     test rax, rax
     jz .error
     mov r14, rax
+    lea rsi, [rel .close_paren]
     call expect_punct
-    db ")", 0
     call parse_block
     test rax, rax
     jz .error
@@ -1269,6 +1283,12 @@ parse_for_stmt:
     ret
 .for_kw:
     db "for", 0
+.open_paren:
+    db "(", 0
+.close_paren:
+    db ")", 0
+.semi:
+    db ";", 0
 
 parse_return_stmt:
     push rbp
@@ -1289,14 +1309,15 @@ parse_return_stmt:
     call set_node_type
     mov esi, [token_line]
     call set_node_line
-    mov qword [child_count], 0
+    mov qword [r12 + 32], 0
     cmp qword [token_type], TOKEN_PUNCTUATION
-    jne .no_expr
+    jne .parse_expr
     lea rdi, [token_value]
     cmp byte [rdi], ';'
     je .no_expr
     cmp byte [rdi], '}'
     je .no_expr
+.parse_expr:
     call parse_expression
     test rax, rax
     jz .no_expr
@@ -1362,13 +1383,14 @@ parse_assignment:
     call parse_expression
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], OP_ASSIGN
     mov qword [rdi + 40], r13
-    mov qword [rdi + 48], r12
+    mov qword [rdi + 48], r14
     mov r12, rax
 .done:
     mov rax, r12
@@ -1398,13 +1420,14 @@ parse_logical_or:
     call parse_logical_and
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], OP_OR
     mov qword [rdi + 40], r13
-    mov qword [rdi + 48], r12
+    mov qword [rdi + 48], r14
     mov r12, rax
     jmp .loop
 .done:
@@ -1435,13 +1458,14 @@ parse_logical_and:
     call parse_equality
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], OP_AND
     mov qword [rdi + 40], r13
-    mov qword [rdi + 48], r12
+    mov qword [rdi + 48], r14
     mov r12, rax
     jmp .loop
 .done:
@@ -1483,13 +1507,14 @@ parse_equality:
     call parse_comparison
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], r13d
     mov qword [rdi + 40], r12
-    mov qword [rdi + 48], rax
+    mov qword [rdi + 48], r14
     mov r12, rax
     jmp .loop
 .done:
@@ -1547,13 +1572,14 @@ parse_comparison:
     call parse_term
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], r13d
     mov qword [rdi + 40], r12
-    mov qword [rdi + 48], rax
+    mov qword [rdi + 48], r14
     mov r12, rax
     jmp .loop
 .done:
@@ -1596,13 +1622,14 @@ parse_term:
     call parse_factor
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], r13d
     mov qword [rdi + 40], r12
-    mov qword [rdi + 48], rax
+    mov qword [rdi + 48], r14
     mov r12, rax
     jmp .loop
 .done:
@@ -1650,13 +1677,14 @@ parse_factor:
     call parse_unary
     test rax, rax
     jz .done
+    mov r14, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_BINARY_EXPR
     call set_node_type
     mov dword [rdi + 32], r13d
     mov qword [rdi + 40], r12
-    mov qword [rdi + 48], rax
+    mov qword [rdi + 48], r14
     mov r12, rax
     jmp .loop
 .done:
@@ -1684,6 +1712,7 @@ parse_unary:
     call parse_unary
     test rax, rax
     jz .error
+    mov r12, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_UNARY_EXPR
@@ -1699,6 +1728,7 @@ parse_unary:
     call parse_unary
     test rax, rax
     jz .error
+    mov r12, rax
     call alloc_node
     mov rdi, rax
     mov rsi, NODE_UNARY_EXPR
@@ -2016,8 +2046,8 @@ parse_primary:
     test rax, rax
     jz .error
     mov r12, rax
+    lea rsi, [rel .close_paren]
     call expect_punct
-    db ")", 0
     mov rax, r12
     pop r12
     pop rbp
@@ -2035,6 +2065,8 @@ parse_primary:
     db "null", 0
 .new_str:
     db "new", 0
+.close_paren:
+    db ")", 0
 
 parser_get_error:
     mov rax, [parser_error_msg]
