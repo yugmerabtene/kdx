@@ -447,8 +447,11 @@ codegen_statement:
     jmp .done
 
 .gen_expr:
-    ; Expression statements are parsed, but side-effectful lowering
-    ; is currently restricted to keep codegen stable.
+    mov r13, [r12 + 32]
+    test r13, r13
+    jz .done
+    mov rdi, r13
+    call codegen_expression
     jmp .done
 
 .done:
@@ -1257,27 +1260,33 @@ codegen_call:
     jmp .push_arg
 
 .arg0:
-    mov rdi, rax
+    call emit_instruction
+    db 'mov rdi, rax',10,0
     jmp .next_arg
 
 .arg1:
-    mov rsi, rax
+    call emit_instruction
+    db 'mov rsi, rax',10,0
     jmp .next_arg
 
 .arg2:
-    mov rdx, rax
+    call emit_instruction
+    db 'mov rdx, rax',10,0
     jmp .next_arg
 
 .arg3:
-    mov rcx, rax
+    call emit_instruction
+    db 'mov rcx, rax',10,0
     jmp .next_arg
 
 .arg4:
-    mov r8, rax
+    call emit_instruction
+    db 'mov r8, rax',10,0
     jmp .next_arg
 
 .arg5:
-    mov r9, rax
+    call emit_instruction
+    db 'mov r9, rax',10,0
     jmp .next_arg
 
 .push_arg:
