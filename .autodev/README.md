@@ -36,6 +36,19 @@ python3 .autodev/run.py --once
 python3 .autodev/run.py --daemon
 ```
 
+Install persistent orchestrator + workers:
+
+```bash
+./.autodev/install_systemd.sh
+```
+
+Default non-stop workers:
+
+- `kdx-autodev-worker@parser.service`
+- `kdx-autodev-worker@codegen.service`
+- `kdx-autodev-worker@qa.service`
+- `kdx-autodev-worker@reliability.service`
+
 ## Safety
 
 - No force git operations
