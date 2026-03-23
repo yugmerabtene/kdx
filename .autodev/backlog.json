@@ -1,0 +1,59 @@
+{
+  "generated_at": "",
+  "tasks": [
+    {
+      "id": "SPRINT-PARSER-001",
+      "title": "Parser lane validation sweep",
+      "lane": "dev_parser",
+      "priority": "high",
+      "status": "pending",
+      "retries": 0,
+      "commit_message": "chore(parser): autonomous parser validation sweep",
+      "steps": [
+        "./build.sh",
+        "./kdx examples/control_flow.kdx -S -o /tmp/autodev_control_flow.s",
+        "./kdx examples/hello.kdx -S -o /tmp/autodev_hello_parser.s"
+      ]
+    },
+    {
+      "id": "SPRINT-CODEGEN-001",
+      "title": "Codegen lane deterministic output sweep",
+      "lane": "dev_codegen",
+      "priority": "high",
+      "status": "in_progress",
+      "retries": 0,
+      "commit_message": "chore(codegen): autonomous deterministic generation sweep",
+      "steps": [
+        "./build.sh",
+        "./kdx examples/simple.kdx -S -o /tmp/autodev_simple_codegen.s",
+        "./kdx examples/hello.kdx -o /tmp/autodev_hello_codegen_bin"
+      ],
+      "started_at": "2026-03-23T18:31:07+00:00"
+    },
+    {
+      "id": "SPRINT-QA-001",
+      "title": "QA lane full regression",
+      "lane": "qa",
+      "priority": "high",
+      "status": "pending",
+      "retries": 0,
+      "commit_message": "chore(qa): autonomous regression cycle",
+      "steps": [
+        "./test.sh"
+      ]
+    },
+    {
+      "id": "SPRINT-REVIEW-001",
+      "title": "Review lane hygiene snapshot",
+      "lane": "review",
+      "priority": "medium",
+      "status": "pending",
+      "retries": 0,
+      "commit_message": "chore(review): autonomous hygiene snapshot",
+      "steps": [
+        "git status --short > /tmp/autodev_git_status.txt",
+        "git diff --stat > /tmp/autodev_diff_stat.txt"
+      ]
+    }
+  ]
+}

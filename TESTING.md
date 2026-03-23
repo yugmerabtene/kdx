@@ -71,3 +71,18 @@ Custom duration and log file:
 ```bash
 ./week_sprint_runner.sh 12 sprint_12h.log
 ```
+
+## Persistent Multi-Agent Service (Systemd User)
+
+Install and run the autonomous multi-agent loop as a user service:
+
+```bash
+./.autodev/install_systemd.sh
+```
+
+Useful commands:
+
+```bash
+systemctl --user status kdx-autodev.service
+journalctl --user -u kdx-autodev.service -n 100 --no-pager
+```

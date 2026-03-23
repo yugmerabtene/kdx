@@ -100,6 +100,8 @@ Autonomous sprint tracking:
 Long-run stability workflow is documented in `TESTING.md`.
 Continuous week-long loop automation is available via `week_sprint_runner.sh`.
 
+Persistent user-service automation is available via `.autodev/install_systemd.sh`.
+
 ## Roadmap
 
 1. Lexer / parser / basic codegen
