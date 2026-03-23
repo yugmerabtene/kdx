@@ -1966,16 +1966,21 @@ emit_mov_stack:
     call emit_instruction
     db 'mov [rbp',0
     cmp rdi, 0
-    jge .positive
+    jg .positive
+    je .zero
+
+    call emit_instruction
+    db '-',0
     mov rax, rdi
     neg rax
+    mov rdi, rax
     call emit_number_imm
     jmp .close
 .positive:
-    mov byte [output_buffer + 0], '+'
-    inc qword [output_pos]
-    mov rdi, rdi
+    call emit_instruction
+    db '+',0
     call emit_number_imm
+.zero:
 .close:
     call emit_instruction
     db '], rax',10,0
