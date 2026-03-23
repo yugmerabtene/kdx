@@ -14,6 +14,12 @@
     "test_output.*",
     "week_sprint.log",
     "*.log",
+    ".autodev/backlog.json",
+    ".autodev/state.json",
+    ".autodev/runtime/*",
+    ".autodev/heartbeat.txt",
+    ".autodev/orchestrator.lock",
+    ".autodev/autodev.log",
     "abc",
     "hello",
     "hello_bin"

@@ -14,12 +14,15 @@ from typing import Dict, List, Optional, Tuple
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AUTODEV = ROOT / ".autodev"
-BACKLOG_PATH = AUTODEV / "backlog.json"
-STATE_PATH = AUTODEV / "state.json"
+RUNTIME = AUTODEV / "runtime"
+BACKLOG_TEMPLATE_PATH = AUTODEV / "backlog.json"
+STATE_TEMPLATE_PATH = AUTODEV / "state.json"
+BACKLOG_PATH = RUNTIME / "backlog.runtime.json"
+STATE_PATH = RUNTIME / "state.runtime.json"
 POLICY_PATH = AUTODEV / "policy.json"
-LOG_PATH = AUTODEV / "autodev.log"
-LOCK_PATH = AUTODEV / "orchestrator.lock"
-HEARTBEAT_PATH = AUTODEV / "heartbeat.txt"
+LOG_PATH = RUNTIME / "autodev.log"
+LOCK_PATH = RUNTIME / "orchestrator.lock"
+HEARTBEAT_PATH = RUNTIME / "heartbeat.txt"
 
 
 def now_utc() -> str:
@@ -270,12 +273,18 @@ def healthcheck() -> int:
 
 def main_loop(once: bool = False) -> int:
     AUTODEV.mkdir(parents=True, exist_ok=True)
+    RUNTIME.mkdir(parents=True, exist_ok=True)
     lock_file = LOCK_PATH.open("w", encoding="ascii")
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         log("Another orchestrator instance is already running")
         return 0
+
+    if not BACKLOG_PATH.exists() and BACKLOG_TEMPLATE_PATH.exists():
+        BACKLOG_PATH.write_text(BACKLOG_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
+    if not STATE_PATH.exists() and STATE_TEMPLATE_PATH.exists():
+        STATE_PATH.write_text(STATE_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
 
     backlog = load_json(BACKLOG_PATH, {"generated_at": "", "tasks": []})
     state = load_json(

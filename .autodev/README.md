@@ -14,8 +14,9 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 
 - `run.py`: orchestrator and lane executor
 - `policy.json`: runtime policy and safety limits
-- `backlog.json`: active sprint tasks
-- `state.json`: heartbeat, history, and progress
+- `backlog.json`: template sprint tasks
+- `state.json`: template initial state
+- `runtime/`: live backlog/state/heartbeat/log files (ignored)
 - `systemd/*.template`: user-service unit templates
 - `install_systemd.sh`: installs and enables user units
 
