@@ -1094,7 +1094,11 @@ codegen_unary_expr:
 
 .op_not:
     call emit_instruction
-    db 'not rax',10,0
+    db 'test rax, rax',10,0
+    call emit_instruction
+    db 'sete al',10,0
+    call emit_instruction
+    db 'movzx rax, al',10,0
     jmp .done
 
 .done:
@@ -1622,7 +1626,11 @@ codegen_unary_op:
 
 .not:
     call emit_instruction
-    db 'not rax',10,0
+    db 'test rax, rax',10,0
+    call emit_instruction
+    db 'sete al',10,0
+    call emit_instruction
+    db 'movzx rax, al',10,0
 
 .done:
     pop rbp
