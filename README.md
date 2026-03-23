@@ -96,6 +96,7 @@ Autonomous sprint tracking:
 - `SCRUM_AGENTS.md` defines specialized agent roles and cadence
 - `AGENT_TEAMS.md` defines multi-team charters and weekly operating contract
 - `SPRINT_BOARD.md` tracks current in-progress and next-queue work
+- `.autodev/lanes/` contains dedicated reliability lanes (perf/security/spec/incident/metrics)
 
 Long-run stability workflow is documented in `TESTING.md`.
 Continuous week-long loop automation is available via `week_sprint_runner.sh`.

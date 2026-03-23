@@ -20,6 +20,14 @@ This repository is operated with a specialized multi-team scrum model for contin
 - Agent Delta (QA/CI): regression suites, negative tests, stability loops, workflow hygiene
 - Agent Nova (Docs/Release): sprint notes, changelog quality, versioning cadence
 
+### Team Reliability and Governance
+
+- Agent Orion (Perf/Memory): build/test timing, memory pressure signals, hot-path stability
+- Agent Sentinel (Security/Safety): flag matrix abuse, malformed input safety, pipeline hardening
+- Agent Atlas (Spec/Consistency): language keyword/spec drift checks, parser/lexer consistency
+- Agent Phoenix (Incident/Recovery): service health checks, watchdog restart and recovery playbooks
+- Agent Pulse (Metrics/Observability): runtime metrics snapshots and trend logging
+
 ## Scrum Cadence
 
 - Sprint length: 1 day

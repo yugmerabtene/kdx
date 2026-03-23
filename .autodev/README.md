@@ -9,6 +9,11 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `qa`: regression and soak lane
 - `review`: diff and hygiene lane
 - `release`: local commit and version tag lane
+- `perf_memory`: performance and memory sweep lane
+- `security_safety`: safety and hardening lane
+- `spec_consistency`: language-spec drift lane
+- `incident_recovery`: watchdog and restart lane
+- `metrics_observe`: observability snapshot lane
 
 ## Core Files
 

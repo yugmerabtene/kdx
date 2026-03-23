@@ -29,6 +29,15 @@ This file defines autonomous specialist teams and their execution boundaries.
   - repeatable multi-loop pass rate
   - sprint-close versioning discipline
 
+## Team D: Reliability and Governance
+
+- Scope: `.autodev/lanes/*`, `.autodev/run.py`, health timers, runtime metrics
+- Mission: keep autonomous execution safe, observable, and recoverable
+- Primary KPIs:
+  - service heartbeat freshness and watchdog recovery success
+  - stable build/test timing trends over long runs
+  - no unattended degradation in autonomous loop reliability
+
 ## Weekly Operating Contract
 
 - Daily sprint cycles per team (plan -> build -> validate -> close)
