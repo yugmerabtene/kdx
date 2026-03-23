@@ -94,6 +94,7 @@ CI runs on pushes and pull requests via GitHub Actions.
 Autonomous sprint tracking:
 
 - `SCRUM_AGENTS.md` defines specialized agent roles and cadence
+- `AGENT_TEAMS.md` defines multi-team charters and weekly operating contract
 - `SPRINT_BOARD.md` tracks current in-progress and next-queue work
 
 Long-run stability workflow is documented in `TESTING.md`.

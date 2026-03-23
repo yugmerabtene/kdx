@@ -1,22 +1,44 @@
 # Sprint Board
 
-Current sprint theme: parser strictness + codegen reliability + regression hardening.
+Current sprint theme: multi-team hardening for parser/codegen/pipeline quality.
 
-## In Progress
+## Team Core Compiler Lane
 
-- [ ] Enforce strict parse failure for malformed grouped constructs
-- [ ] Repair expression-statement lowering semantics in codegen
-- [ ] Expand negative tests for syntax-error exit code behavior
+### In Progress
 
-## Completed
+- [ ] Tighten parser strictness for malformed grouped constructs and delimiter errors
+- [ ] Improve call ABI lowering and expression-statement emission safety
+- [ ] Add parser/operator regression fixtures for assignment vs equality behavior
+
+### Completed
 
 - [x] Stabilized label generation and control-flow compile path
 - [x] Added control-flow regression fixture (`examples/control_flow.kdx`)
-- [x] Hardened CLI/path negative tests in `test.sh`
-- [x] Added oversized input rejection coverage in `test.sh`
+
+## Team Platform Pipeline Lane
+
+### In Progress
+
+- [ ] Harden option matrix behavior around invalid combinations and output handling
+- [ ] Expand command-path safety checks for compile/link/exec transitions
+
+### Completed
+
+- [x] Hardened CLI/path negative checks in `test.sh`
+- [x] Added oversized input rejection coverage
+
+## Team Quality Release Lane
+
+### In Progress
+
+- [ ] Expand negative syntax tests and deterministic exit-code verification
+- [ ] Add repeated regression loop gate in CI
+
+### Completed
+
+- [x] Introduced autonomous sprint governance docs (`SCRUM_AGENTS.md`)
 
 ## Next Queue
 
-- [ ] Add parser regression cases for missing delimiters and invalid operators
-- [ ] Improve call lowering to emit full register/stack argument setup safely
-- [ ] Add stress loop target in CI workflow for repeated regression runs
+- [ ] Add stress loop target in CI workflow for repeated `./test.sh` runs
+- [ ] Add release checklist and semver sprint-close policy appendix
