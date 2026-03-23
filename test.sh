@@ -34,7 +34,7 @@ expect_program_exit() {
 }
 
 cleanup_artifacts() {
-  rm -f ci_out.s ci_out.o ci_out_bin ci_hello.s ci_hello_bin ci_flow.s ci_big.kdx ci_bad_syntax.kdx ci_bad_token.kdx ci_hello_custom /tmp/kdx_test.stderr
+  rm -f ci_out.s ci_out.o ci_out_bin ci_hello.s ci_hello_bin ci_flow.s ci_big.kdx ci_bad_syntax.kdx ci_bad_token.kdx ci_bad_call_paren.kdx ci_bad_for_header.kdx ci_hello_custom /tmp/kdx_test.stderr
 }
 
 trap cleanup_artifacts EXIT
@@ -45,24 +45,24 @@ echo "Testing KodPix compiler..."
 
 cleanup_artifacts
 
-echo "[1/16] Help output"
+echo "[1/18] Help output"
 ./kdx --help >/dev/null
 
-echo "[2/16] Assembly-only mode"
+echo "[2/18] Assembly-only mode"
 ./kdx examples/simple.kdx -S -o ci_out.s
 test -f ci_out.s
 
-echo "[3/16] Compile-only mode"
+echo "[3/18] Compile-only mode"
 ./kdx examples/simple.kdx -c -o ci_out.o
 test -f ci_out.o
 
-echo "[4/16] Full compile and run"
+echo "[4/18] Full compile and run"
 ./kdx examples/simple.kdx -o ci_out_bin
 test -f ci_out_bin
 chmod +x ci_out_bin
 ./ci_out_bin
 
-echo "[5/16] Hello sample (typed return + call syntax)"
+echo "[5/18] Hello sample (typed return + call syntax)"
 ./kdx examples/hello.kdx -S -o ci_hello.s
 test -f ci_hello.s
 ./kdx examples/hello.kdx -o ci_hello_bin
@@ -70,33 +70,33 @@ test -f ci_hello_bin
 chmod +x ci_hello_bin
 ./ci_hello_bin
 
-echo "[6/16] Control-flow sample emits assembly"
+echo "[6/18] Control-flow sample emits assembly"
 ./kdx examples/control_flow.kdx -S -o ci_flow.s
 test -f ci_flow.s
 
-echo "[7/16] Invalid flag returns error"
+echo "[7/18] Invalid flag returns error"
 expect_failure 1 ./kdx --bad-flag
 
-echo "[8/16] Missing input returns error"
+echo "[8/18] Missing input returns error"
 expect_failure 1 ./kdx
 
-echo "[9/16] Missing file returns I/O error"
+echo "[9/18] Missing file returns I/O error"
 expect_failure 5 ./kdx examples/does_not_exist.kdx
 
-echo "[10/16] Oversized input is rejected"
+echo "[10/18] Oversized input is rejected"
 dd if=/dev/zero of=ci_big.kdx bs=1 count=17000 status=none
 expect_failure 5 ./kdx ci_big.kdx
 
-echo "[11/16] Incompatible flags are rejected"
+echo "[11/18] Incompatible flags are rejected"
 expect_failure 1 ./kdx -S -x examples/simple.kdx
 
-echo "[12/16] Missing -o value is rejected"
+echo "[12/18] Missing -o value is rejected"
 expect_failure 1 ./kdx -o -S examples/simple.kdx
 
-echo "[13/16] Multiple input files are rejected"
+echo "[13/18] Multiple input files are rejected"
 expect_failure 1 ./kdx examples/simple.kdx examples/hello.kdx
 
-echo "[14/16] Malformed syntax returns parser error"
+echo "[14/18] Malformed syntax returns parser error"
 cat > ci_bad_syntax.kdx <<'EOF'
 fn main( {
     return 0;
@@ -104,7 +104,7 @@ fn main( {
 EOF
 expect_failure 2 ./kdx ci_bad_syntax.kdx
 
-echo "[15/16] Unknown token returns parser error"
+echo "[15/18] Unknown token returns parser error"
 cat > ci_bad_token.kdx <<'EOF'
 fn main() -> i32 {
     @
@@ -113,8 +113,28 @@ fn main() -> i32 {
 EOF
 expect_failure 2 ./kdx ci_bad_token.kdx
 
-echo "[16/16] Custom output binary path"
+echo "[16/18] Custom output binary path"
 ./kdx examples/hello.kdx -o ci_hello_custom
 test -f ci_hello_custom
+
+echo "[17/18] Missing call ')' returns parser error"
+cat > ci_bad_call_paren.kdx <<'EOF'
+fn main() -> i32 {
+    println("x";
+    return 0;
+}
+EOF
+expect_failure 2 ./kdx ci_bad_call_paren.kdx
+
+echo "[18/18] Missing for-header ';' returns parser error"
+cat > ci_bad_for_header.kdx <<'EOF'
+fn main() -> i32 {
+    for (let i = 0; i < 3 i + 1) {
+        return 1;
+    }
+    return 0;
+}
+EOF
+expect_failure 2 ./kdx ci_bad_for_header.kdx
 
 echo "All tests passed"

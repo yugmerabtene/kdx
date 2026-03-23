@@ -15,6 +15,7 @@ Current coverage includes:
 - typed-return and call syntax sample validation
 - control-flow assembly generation sanity check
 - negative checks for invalid flags, missing input, missing files
+- parser delimiter negatives (missing `)` in calls, malformed `for` header)
 - oversized input rejection behavior
 
 ## 24-Hour Soak Testing
