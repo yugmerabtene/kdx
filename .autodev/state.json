@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-03-23T18:31:07+00:00",
-  "last_heartbeat": "2026-03-23T18:31:07+00:00",
+  "started_at": null,
+  "last_heartbeat": null,
   "completed_cycles": 0,
   "last_completed_task": null,
   "last_commit": null,

@@ -20,15 +20,14 @@
       "title": "Codegen lane deterministic output sweep",
       "lane": "dev_codegen",
       "priority": "high",
-      "status": "in_progress",
+      "status": "pending",
       "retries": 0,
       "commit_message": "chore(codegen): autonomous deterministic generation sweep",
       "steps": [
         "./build.sh",
         "./kdx examples/simple.kdx -S -o /tmp/autodev_simple_codegen.s",
         "./kdx examples/hello.kdx -o /tmp/autodev_hello_codegen_bin"
-      ],
-      "started_at": "2026-03-23T18:31:07+00:00"
+      ]
     },
     {
       "id": "SPRINT-QA-001",
