@@ -1,0 +1,30 @@
+{
+  "generated_at": "",
+  "tasks": [
+    {
+      "id": "FEATURE-GROWTH-CORE",
+      "title": "Feature growth core pack",
+      "lane": "feature_growth",
+      "priority": "high",
+      "status": "pending",
+      "retries": 0,
+      "commit_message": "feat(autodev): apply periodic feature growth pack",
+      "steps": [
+        "python3 ./.autodev/features/feature_example_seed.py",
+        "./.autodev/features/feature_tests.sh"
+      ]
+    },
+    {
+      "id": "FEATURE-ROADMAP-SYNC",
+      "title": "Roadmap sync and progress snapshot",
+      "lane": "feature_roadmap",
+      "priority": "medium",
+      "status": "pending",
+      "retries": 0,
+      "commit_message": "docs(autodev): refresh roadmap progress snapshot",
+      "steps": [
+        "python3 ./.autodev/features/feature_roadmap_sync.py"
+      ]
+    }
+  ]
+}

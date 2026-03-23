@@ -15,11 +15,15 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `incident_recovery`: watchdog and restart lane
 - `metrics_observe`: observability snapshot lane
 
+Feature-growth lanes are defined in `.autodev/feature_backlog.json` and executed
+periodically between validation cycles.
+
 ## Core Files
 
 - `run.py`: orchestrator and lane executor
 - `policy.json`: runtime policy and safety limits
 - `backlog.json`: template sprint tasks
+- `feature_backlog.json`: template feature-growth tasks
 - `state.json`: template initial state
 - `runtime/`: live backlog/state/heartbeat/log files (ignored)
 - `systemd/*.template`: user-service unit templates

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import datetime as dt
 import fcntl
 import fnmatch
@@ -16,8 +17,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 AUTODEV = ROOT / ".autodev"
 RUNTIME = AUTODEV / "runtime"
 BACKLOG_TEMPLATE_PATH = AUTODEV / "backlog.json"
+FEATURE_TEMPLATE_PATH = AUTODEV / "feature_backlog.json"
 STATE_TEMPLATE_PATH = AUTODEV / "state.json"
 BACKLOG_PATH = RUNTIME / "backlog.runtime.json"
+FEATURE_BACKLOG_PATH = RUNTIME / "feature_backlog.runtime.json"
 STATE_PATH = RUNTIME / "state.runtime.json"
 POLICY_PATH = AUTODEV / "policy.json"
 LOG_PATH = RUNTIME / "autodev.log"
@@ -185,11 +188,35 @@ def regenerate_backlog(backlog: Dict) -> Dict:
     return backlog
 
 
+def regenerate_feature_backlog() -> Dict:
+    template = load_json(FEATURE_TEMPLATE_PATH, {"generated_at": "", "tasks": []})
+    generated = now_utc()
+    out = {"generated_at": generated, "tasks": []}
+
+    for task in template.get("tasks", []):
+        t = copy.deepcopy(task)
+        base_id = t.get("id", "FEATURE-TASK")
+        t["id"] = f"{base_id}-{generated}"
+        t["status"] = "pending"
+        t["retries"] = 0
+        t.pop("started_at", None)
+        t.pop("completed_at", None)
+        t.pop("last_error", None)
+        out["tasks"].append(t)
+
+    log("Feature backlog regenerated from template")
+    return out
+
+
 def next_task(backlog: Dict) -> Optional[Dict]:
     pending = [t for t in backlog.get("tasks", []) if t.get("status") == "pending"]
     if not pending:
         return None
     return sort_tasks(pending)[0]
+
+
+def has_pending(backlog: Dict) -> bool:
+    return bool([t for t in backlog.get("tasks", []) if t.get("status") in {"pending", "in_progress"}])
 
 
 def qa_gate(policy: Dict) -> None:
@@ -255,10 +282,10 @@ def commit_and_tag(task: Dict, policy: Dict, state: Dict) -> None:
         log(f"Created autonomous tag: {new_tag}")
 
 
-def execute_task(task: Dict, backlog: Dict, state: Dict, policy: Dict) -> Tuple[bool, str]:
+def execute_task(task: Dict, backlog: Dict, backlog_path: pathlib.Path, state: Dict, policy: Dict) -> Tuple[bool, str]:
     task["status"] = "in_progress"
     task["started_at"] = now_utc()
-    save_json(BACKLOG_PATH, backlog)
+    save_json(backlog_path, backlog)
 
     log(f"Starting task {task['id']} ({task.get('lane')})")
     try:
@@ -300,7 +327,7 @@ def execute_task(task: Dict, backlog: Dict, state: Dict, policy: Dict) -> Tuple[
         log(f"Task error: {task['id']}: {exc}")
         return False, str(exc)
     finally:
-        save_json(BACKLOG_PATH, backlog)
+        save_json(backlog_path, backlog)
         save_json(STATE_PATH, state)
 
 
@@ -333,16 +360,20 @@ def main_loop(once: bool = False) -> int:
 
     if not BACKLOG_PATH.exists() and BACKLOG_TEMPLATE_PATH.exists():
         BACKLOG_PATH.write_text(BACKLOG_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
+    if not FEATURE_BACKLOG_PATH.exists() and FEATURE_TEMPLATE_PATH.exists():
+        FEATURE_BACKLOG_PATH.write_text(FEATURE_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
     if not STATE_PATH.exists() and STATE_TEMPLATE_PATH.exists():
         STATE_PATH.write_text(STATE_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
 
     backlog = load_json(BACKLOG_PATH, {"generated_at": "", "tasks": []})
+    feature_backlog = load_json(FEATURE_BACKLOG_PATH, {"generated_at": "", "tasks": []})
     state = load_json(
         STATE_PATH,
         {
             "started_at": None,
             "last_heartbeat": None,
             "completed_cycles": 0,
+            "validation_since_feature": 0,
             "history": [],
         },
     )
@@ -362,19 +393,55 @@ def main_loop(once: bool = False) -> int:
             log("Autonomous window reached duration limit; stopping daemon")
             return 0
 
-        if not [t for t in backlog.get("tasks", []) if t.get("status") in {"pending", "in_progress"}]:
+        if not has_pending(backlog):
             backlog = regenerate_backlog(backlog)
             save_json(BACKLOG_PATH, backlog)
 
-        task = next_task(backlog)
-        if task is None:
+        feature_enabled = bool(policy.get("feature_enabled", True))
+        if feature_enabled and not has_pending(feature_backlog):
+            feature_backlog = regenerate_feature_backlog()
+            save_json(FEATURE_BACKLOG_PATH, feature_backlog)
+
+        validation_task = next_task(backlog)
+        feature_task = next_task(feature_backlog) if feature_enabled else None
+
+        feature_every = int(policy.get("feature_every_n_validation_tasks", 3))
+        validation_since_feature = int(state.get("validation_since_feature", 0))
+
+        selected_task: Optional[Dict] = None
+        selected_path = BACKLOG_PATH
+        selected_track = "validation"
+
+        if feature_task is not None and (validation_task is None or validation_since_feature >= feature_every):
+            selected_task = feature_task
+            selected_path = FEATURE_BACKLOG_PATH
+            selected_track = "feature"
+        else:
+            selected_task = validation_task
+            selected_path = BACKLOG_PATH
+            selected_track = "validation"
+
+        if selected_task is None:
             log("No pending tasks available")
             if once:
                 return 0
             time.sleep(int(policy.get("loop_sleep_seconds", 60)))
             continue
 
-        execute_task(task, backlog, state, policy)
+        target_backlog = feature_backlog if selected_track == "feature" else backlog
+        ok, _ = execute_task(selected_task, target_backlog, selected_path, state, policy)
+
+        if ok:
+            if selected_track == "feature":
+                state["validation_since_feature"] = 0
+            else:
+                state["validation_since_feature"] = int(state.get("validation_since_feature", 0)) + 1
+            save_json(STATE_PATH, state)
+
+        if selected_track == "feature":
+            feature_backlog = target_backlog
+        else:
+            backlog = target_backlog
 
         if once:
             return 0
