@@ -833,6 +833,9 @@ codegen_expression:
     cmp r13, 15                     ; NODE_UNARY_EXPR
     je .gen_unary
 
+    cmp r13, 16                     ; NODE_POSTFIX_EXPR
+    je .gen_postfix
+
     cmp r13, 17                     ; NODE_CALL_EXPR
     je .gen_call
 
@@ -868,6 +871,11 @@ codegen_expression:
 .gen_unary:
     mov rdi, r12
     call codegen_unary_expr
+    jmp .done
+
+.gen_postfix:
+    mov rdi, r12
+    call codegen_postfix_expr
     jmp .done
 
 .gen_call:
@@ -1102,6 +1110,65 @@ codegen_unary_expr:
     jmp .done
 
 .done:
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
+codegen_postfix_expr:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    push r14
+
+    mov r12, rdi                    ; postfix node
+    mov r13, [r12 + 32]             ; 1=++, 2=--
+    mov r12, [r12 + 40]             ; operand node
+
+    test r12, r12
+    jz .done
+
+    mov rdi, r12
+    call get_node_type_value
+    cmp rax, 19                     ; NODE_IDENTIFIER
+    jne .done
+
+    mov rdi, r12
+    add rdi, 24
+    mov rsi, rdi
+    call symbol_lookup
+    test rax, rax
+    jz .done
+
+    mov rdi, rax
+    call symbol_get_addr
+    mov r14, rax                    ; stack offset
+
+    mov rdi, r12
+    call codegen_identifier
+
+    cmp r13, 1
+    je .inc
+    cmp r13, 2
+    je .dec
+    jmp .store
+
+.inc:
+    call emit_instruction
+    db 'add rax, 1',10,0
+    jmp .store
+
+.dec:
+    call emit_instruction
+    db 'sub rax, 1',10,0
+
+.store:
+    mov rdi, r14
+    call emit_mov_stack
+
+.done:
+    pop r14
     pop r13
     pop r12
     pop rbp

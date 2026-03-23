@@ -16,7 +16,7 @@ section .data
     TOKEN_COMMENT     equ 8
 
     KEYWORD_COUNT     equ 28
-    TYPE_COUNT        equ 10
+    TYPE_COUNT        equ 14
 
     kw_let        : db 'let',0
     kw_const      : db 'const',0
@@ -54,6 +54,10 @@ section .data
     tp_f32        : db 'f32',0
     tp_f64        : db 'f64',0
     tp_bool       : db 'bool',0
+    tp_boolean    : db 'boolean',0
+    tp_int        : db 'int',0
+    tp_float      : db 'float',0
+    tp_string_l   : db 'string',0
     tp_string     : db 'String',0
     tp_void       : db 'void',0
     tp_char       : db 'char',0
@@ -96,6 +100,10 @@ section .data
         dq tp_f32, 3
         dq tp_f64, 3
         dq tp_bool, 4
+        dq tp_boolean, 7
+        dq tp_int, 3
+        dq tp_float, 5
+        dq tp_string_l, 6
         dq tp_string, 6
         dq tp_void, 4
         dq tp_char, 4

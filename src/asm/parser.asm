@@ -399,6 +399,10 @@ parse_program:
     call strcmp
     test rax, rax
     jz .parse_fn
+    mov rsi, .fn_short_str
+    call strcmp
+    test rax, rax
+    jz .parse_fn
     jmp .parse_error
 .parse_import:
     call parse_import
@@ -443,6 +447,8 @@ parse_program:
 .class_str:
     db "class", 0
 .fn_str:
+    db "function", 0
+.fn_short_str:
     db "fn", 0
 
 parse_import:
@@ -941,6 +947,8 @@ parse_statement:
     mov rbp, rsp
     push r12
     mov r12, rax
+    cmp qword [token_type], TOKEN_TYPE
+    je .parse_typed
     cmp qword [token_type], TOKEN_KEYWORD
     jne .parse_expr
     lea rdi, [token_value]
@@ -965,6 +973,10 @@ parse_statement:
     jmp .parse_expr
 .parse_let:
     call parse_let_decl
+    mov r12, rax
+    jmp .done
+.parse_typed:
+    call parse_typed_decl
     mov r12, rax
     jmp .done
 .parse_if:
@@ -1085,6 +1097,55 @@ parse_let_decl:
     ret
 .let_kw:
     db "let", 0
+
+parse_typed_decl:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    cmp qword [token_type], TOKEN_TYPE
+    jne .error
+    call parse_type
+    test rax, rax
+    jz .error
+    mov r13, rax
+    cmp qword [token_type], TOKEN_IDENTIFIER
+    jne .error
+    call alloc_node
+    mov r12, rax
+    mov rdi, rax
+    mov rsi, NODE_LET_DECL
+    call set_node_type
+    mov esi, [token_line]
+    call set_node_line
+    lea rsi, [token_value]
+    mov rdi, r12
+    mov rcx, 64
+    call memcpy_str
+    mov qword [r12 + 40], r13
+    call advance_token
+    cmp qword [token_type], TOKEN_OPERATOR
+    jne .done
+    lea rdi, [token_value]
+    cmp byte [rdi], '='
+    jne .done
+    call advance_token
+    call parse_expression
+    test rax, rax
+    jz .done
+    mov qword [r12 + 48], rax
+.done:
+    mov rax, r12
+    pop r13
+    pop r12
+    pop rbp
+    ret
+.error:
+    xor rax, rax
+    pop r13
+    pop r12
+    pop rbp
+    ret
 
 parse_if_stmt:
     push rbp
@@ -1223,7 +1284,13 @@ parse_for_stmt:
     call advance_token
     lea rsi, [rel .open_paren]
     call expect_punct
+    cmp qword [token_type], TOKEN_TYPE
+    je .for_typed_init
     call parse_let_decl
+    jmp .for_init_done
+.for_typed_init:
+    call parse_typed_decl
+.for_init_done:
     test rax, rax
     jz .error
     mov r12, rax
@@ -1769,6 +1836,7 @@ parse_postfix:
     cmp byte [rdi + 1], '+'
     jne .done
 .found_postfix:
+    movzx r14, byte [rdi]
     push r12
     call advance_token
     pop r13
@@ -1776,6 +1844,13 @@ parse_postfix:
     mov rdi, rax
     mov rsi, NODE_POSTFIX_EXPR
     call set_node_type
+    cmp r14b, '+'
+    jne .postfix_dec
+    mov dword [rdi + 32], 1
+    jmp .postfix_set_operand
+.postfix_dec:
+    mov dword [rdi + 32], 2
+.postfix_set_operand:
     mov qword [rdi + 40], r13
     mov r12, rax
     jmp .done
