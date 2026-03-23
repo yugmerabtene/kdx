@@ -1,0 +1,15 @@
+[Unit]
+Description=KodPix AutoDev Worker (%i)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO_ROOT__
+ExecStart=/bin/bash __REPO_ROOT__/.autodev/worker_runner.sh %i
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
