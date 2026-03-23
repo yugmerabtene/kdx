@@ -1625,7 +1625,7 @@ read_unknown:
     push rbp
     mov rbp, rsp
 
-    mov qword [token_type], TOKEN_EOF
+    mov qword [token_type], TOKEN_OPERATOR
     mov rax, [line]
     mov [token_line], rax
     mov rax, [column]

@@ -54,3 +54,19 @@ SOAK_MAX_LOOPS=2 ./soak_test.sh 24 quick_soak.log
 ```
 
 Use at least a short soak run before larger parser/codegen refactors.
+
+## One-Week Autonomous Runner
+
+Use the week runner to keep continuous build/test loops tied to system time.
+
+Default 1-week run:
+
+```bash
+./week_sprint_runner.sh
+```
+
+Custom duration and log file:
+
+```bash
+./week_sprint_runner.sh 12 sprint_12h.log
+```

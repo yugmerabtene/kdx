@@ -1485,6 +1485,8 @@ parse_equality:
     mov r13, OP_NEQ
     jmp .found_op
 .found_eq:
+    cmp byte [rdi + 1], '='
+    jne .done
     mov r13, OP_EQ
 .found_op:
     push r12
