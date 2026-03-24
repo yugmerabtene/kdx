@@ -7,6 +7,7 @@ import fnmatch
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import time
@@ -26,6 +27,7 @@ POLICY_PATH = AUTODEV / "policy.json"
 LOG_PATH = RUNTIME / "autodev.log"
 LOCK_PATH = RUNTIME / "orchestrator.lock"
 HEARTBEAT_PATH = RUNTIME / "heartbeat.txt"
+WORKSPACE_LOCK_PATH = RUNTIME / "workspace.lock"
 
 
 def now_utc() -> str:
@@ -35,17 +37,25 @@ def now_utc() -> str:
 def log(message: str) -> None:
     line = f"[{now_utc()}] {message}"
     print(line)
-    with LOG_PATH.open("a", encoding="ascii") as f:
+    with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
 
 
 def run_cmd(command: str, check: bool = True) -> subprocess.CompletedProcess:
+    lock_file = WORKSPACE_LOCK_PATH
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    lock_file.touch(exist_ok=True)
+
+    wrapped = (
+        f"flock -x {shlex.quote(str(lock_file))} "
+        f"bash -lc {shlex.quote(f'cd {shlex.quote(str(ROOT))} && {command}')}"
+    )
     cp = subprocess.run(
-        command,
-        cwd=ROOT,
+        wrapped,
         shell=True,
         text=True,
         capture_output=True,
+        errors="replace",
     )
     if cp.stdout:
         log(f"stdout: {cp.stdout.strip()}")
@@ -59,16 +69,31 @@ def run_cmd(command: str, check: bool = True) -> subprocess.CompletedProcess:
 def load_json(path: pathlib.Path, default: Dict) -> Dict:
     if not path.exists():
         return default
-    return json.loads(path.read_text(encoding="ascii"))
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def save_json(path: pathlib.Path, payload: Dict) -> None:
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="ascii")
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def touch_heartbeat(state: Dict) -> None:
     state["last_heartbeat"] = now_utc()
-    HEARTBEAT_PATH.write_text(state["last_heartbeat"] + "\n", encoding="ascii")
+    HEARTBEAT_PATH.write_text(state["last_heartbeat"] + "\n", encoding="utf-8")
+
+
+def requeue_failed_tasks(backlog: Dict, policy: Dict, label: str) -> Dict:
+    if not bool(policy.get("requeue_failed_tasks", True)):
+        return backlog
+    changed = False
+    for task in backlog.get("tasks", []):
+        if task.get("status") == "failed":
+            task["status"] = "pending"
+            task["retries"] = 0
+            task.pop("last_error", None)
+            changed = True
+    if changed:
+        log(f"Requeued failed tasks in {label} backlog")
+    return backlog
 
 
 def parse_iso(value: Optional[str]) -> Optional[dt.datetime]:
@@ -335,7 +360,7 @@ def healthcheck() -> int:
     if not HEARTBEAT_PATH.exists():
         print("heartbeat missing")
         return 1
-    content = HEARTBEAT_PATH.read_text(encoding="ascii").strip()
+    content = HEARTBEAT_PATH.read_text(encoding="utf-8").strip()
     hb = parse_iso(content)
     if hb is None:
         print("heartbeat invalid")
@@ -351,7 +376,7 @@ def healthcheck() -> int:
 def main_loop(once: bool = False) -> int:
     AUTODEV.mkdir(parents=True, exist_ok=True)
     RUNTIME.mkdir(parents=True, exist_ok=True)
-    lock_file = LOCK_PATH.open("w", encoding="ascii")
+    lock_file = LOCK_PATH.open("w", encoding="utf-8")
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -359,11 +384,11 @@ def main_loop(once: bool = False) -> int:
         return 0
 
     if not BACKLOG_PATH.exists() and BACKLOG_TEMPLATE_PATH.exists():
-        BACKLOG_PATH.write_text(BACKLOG_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
+        BACKLOG_PATH.write_text(BACKLOG_TEMPLATE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     if not FEATURE_BACKLOG_PATH.exists() and FEATURE_TEMPLATE_PATH.exists():
-        FEATURE_BACKLOG_PATH.write_text(FEATURE_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
+        FEATURE_BACKLOG_PATH.write_text(FEATURE_TEMPLATE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     if not STATE_PATH.exists() and STATE_TEMPLATE_PATH.exists():
-        STATE_PATH.write_text(STATE_TEMPLATE_PATH.read_text(encoding="ascii"), encoding="ascii")
+        STATE_PATH.write_text(STATE_TEMPLATE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
 
     backlog = load_json(BACKLOG_PATH, {"generated_at": "", "tasks": []})
     feature_backlog = load_json(FEATURE_BACKLOG_PATH, {"generated_at": "", "tasks": []})
@@ -396,10 +421,15 @@ def main_loop(once: bool = False) -> int:
         if not has_pending(backlog):
             backlog = regenerate_backlog(backlog)
             save_json(BACKLOG_PATH, backlog)
+        backlog = requeue_failed_tasks(backlog, policy, "validation")
+        save_json(BACKLOG_PATH, backlog)
 
         feature_enabled = bool(policy.get("feature_enabled", True))
         if feature_enabled and not has_pending(feature_backlog):
             feature_backlog = regenerate_feature_backlog()
+            save_json(FEATURE_BACKLOG_PATH, feature_backlog)
+        if feature_enabled:
+            feature_backlog = requeue_failed_tasks(feature_backlog, policy, "feature")
             save_json(FEATURE_BACKLOG_PATH, feature_backlog)
 
         validation_task = next_task(backlog)
