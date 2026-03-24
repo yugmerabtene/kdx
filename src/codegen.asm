@@ -1501,8 +1501,10 @@ codegen_call:
     jmp .cleanup_stack
 
 .call_user:
+    mov r15, rdi                    ; preserve callee name pointer
     call emit_instruction
     db 'call func_',0
+    mov rdi, r15
     call emit_node_name
     call emit_newline
 
