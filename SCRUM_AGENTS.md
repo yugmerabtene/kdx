@@ -27,6 +27,9 @@ This repository is operated with a specialized multi-team scrum model for contin
 - Agent Atlas (Spec/Consistency): language keyword/spec drift checks, parser/lexer consistency
 - Agent Phoenix (Incident/Recovery): service health checks, watchdog restart and recovery playbooks
 - Agent Pulse (Metrics/Observability): runtime metrics snapshots and trend logging
+- Agent Fuzz (Fuzzing/Stability): seeded random corpus for crash and timeout detection
+- Agent Oracle (Runtime/Behavior): compile+run exit-code contract checks on pinned fixtures
+- Agent Triage (Crash/Signal): crash/drift summarization and repro candidate extraction
 
 ## Scrum Cadence
 

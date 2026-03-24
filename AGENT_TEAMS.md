@@ -37,6 +37,9 @@ This file defines autonomous specialist teams and their execution boundaries.
   - service heartbeat freshness and watchdog recovery success
   - stable build/test timing trends over long runs
   - no unattended degradation in autonomous loop reliability
+  - zero segfault/timeouts in seeded fuzzing sweeps
+  - stable runtime exit-code contract on pinned oracle fixtures
+  - continuous crash triage snapshots with top repro candidates
 
 ## Weekly Operating Contract
 
