@@ -17,24 +17,22 @@ check_service() {
 }
 
 check_workers() {
-  local output found unit _state
-  output="$(systemctl --user list-unit-files 'kdx-autodev-worker@*.service' --no-legend --plain)"
-  found=0
+  local profiles profile unit output line unit_name
+  profiles=(parser codegen qa reliability)
 
-  if [[ -z "$output" ]]; then
-    log "no worker unit files found"
-    return
-  fi
-
-  while IFS=' ' read -r unit _state; do
-    [[ -z "$unit" ]] && continue
-    found=1
+  for profile in "${profiles[@]}"; do
+    unit="kdx-autodev-worker@${profile}.service"
     check_service "$unit"
-  done <<< "$output"
+  done
 
-  if [[ "$found" -eq 0 ]]; then
-    log "no worker units parsed"
-  fi
+  output="$(systemctl --user list-units 'kdx-autodev-worker@*.service' --all --no-legend --plain || true)"
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    unit_name="${line%% *}"
+    [[ -z "$unit_name" ]] && continue
+    [[ "$unit_name" == *"@.service" ]] && continue
+    check_service "$unit_name"
+  done <<< "$output"
 }
 
 if ! python3 "$REPO_ROOT/.autodev/run.py" --healthcheck; then
