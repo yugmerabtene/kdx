@@ -83,3 +83,6 @@ Execution order is chosen for maximum impact with minimal orchestration overhead
 - Generate/update files: `python3 ./.autodev/features/quick_test_agent.py --refresh`
 - Run stable fast suite: `./quick_tests/run_quick_tests.sh`
 - Lane entrypoint: `./.autodev/lanes/quick_tests.sh`
+- Generate spec pack: `python3 ./.autodev/features/spec_test_agent.py --refresh`
+- Run spec tracking suite: `./quick_tests/run_spec_tests.sh`
+- Run strict target-spec suite: `./quick_tests/run_spec_tests.sh --target`

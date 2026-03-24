@@ -14,6 +14,18 @@ python3 ./.autodev/features/quick_test_agent.py --refresh
 ./quick_tests/run_quick_tests.sh
 ```
 
+Run spec-driven checks (tracking mode):
+
+```bash
+./quick_tests/run_spec_tests.sh
+```
+
+Run strict target-spec checks (expected to fail until full implementation):
+
+```bash
+./quick_tests/run_spec_tests.sh --target
+```
+
 Optional experimental checks:
 
 ```bash
@@ -25,6 +37,9 @@ Optional experimental checks:
 - `quick_tests/cases/pass/`: expected compile + runtime success
 - `quick_tests/cases/fail/`: expected syntax failures
 - `quick_tests/cases/experimental/`: evolving language features to probe quickly
+- `quick_tests/spec/pass/`: baseline spec-compatible cases (must pass now)
+- `quick_tests/spec/fail/`: baseline syntax errors (must fail)
+- `quick_tests/spec/future/`: target language design cases tracked for implementation
 
 ## Add your own quick file
 

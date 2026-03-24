@@ -30,8 +30,8 @@ PASS_CASES = {
 
 
 FAIL_CASES = {
-    "f01_missing_semicolon.kdx": """function main() -> int {
-    return 0
+    "f01_malformed_header.kdx": """function main( {
+    return 0;
 }
 """,
     "f02_bad_token.kdx": """function main() -> int {

@@ -1,0 +1,4 @@
+function main() -> int {
+    println("spec-pass");
+    return 0;
+}
