@@ -57,6 +57,13 @@ function int main() {
     return calc(4, 5);
 }
 """,
+    "p08_class_main_void.kdx": """class Main {
+    public void main() {
+        println("hello");
+        return;
+    }
+}
+""",
 }
 
 
@@ -74,13 +81,6 @@ FAIL_CASES = {
 
 
 FUTURE_CASES = {
-    "t02_class_main_void.kdx": """class Main {
-    public void main() {
-        println("hello");
-        return;
-    }
-}
-""",
     "t04_array_decl.kdx": """function int main() {
     int[] arr;
     return 0;

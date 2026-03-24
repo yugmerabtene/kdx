@@ -75,18 +75,20 @@ expect_compile_ok "quick_tests/spec/pass/p07_new_signature_call.kdx" "/tmp/spec_
 chmod +x /tmp/spec_p07.bin
 expect_program_exit 9 "/tmp/spec_p07.bin"
 
+expect_compile_ok "quick_tests/spec/pass/p08_class_main_void.kdx" "/tmp/spec_p08.bin"
+chmod +x /tmp/spec_p08.bin
+expect_program_exit 0 "/tmp/spec_p08.bin"
+
 echo "[spec] baseline syntax fail cases"
 expect_compile_fail "quick_tests/spec/fail/f01_malformed_header.kdx"
 expect_compile_fail "quick_tests/spec/fail/f02_bad_token.kdx"
 
 if [[ "$TARGET_MODE" -eq 1 ]]; then
   echo "[spec] target mode (future cases must compile)"
-  expect_compile_ok "quick_tests/spec/future/t02_class_main_void.kdx" "/tmp/spec_t02.bin"
   expect_compile_ok "quick_tests/spec/future/t04_array_decl.kdx" "/tmp/spec_t04.bin"
   expect_compile_ok "quick_tests/spec/future/t05_switch_minimal.kdx" "/tmp/spec_t05.bin"
 else
   echo "[spec] tracking mode (future cases expected to fail for now)"
-  expect_compile_fail "quick_tests/spec/future/t02_class_main_void.kdx"
   expect_compile_fail "quick_tests/spec/future/t04_array_decl.kdx"
   expect_compile_fail "quick_tests/spec/future/t05_switch_minimal.kdx"
 fi

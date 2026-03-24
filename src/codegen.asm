@@ -304,6 +304,10 @@ codegen_function:
     mov rdi, str_newline
     call emit_string
 
+    ; Default return value for paths without explicit expression
+    call emit_instruction
+    db 'xor rax, rax',10,0
+
     call generate_label
     mov [current_func_end], rax
 
