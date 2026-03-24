@@ -315,11 +315,11 @@ symbol_lookup:
     lea rbx, [symbol_table + rax]
     
     ; Compare names
-    mov rdi, r12
-    lea rsi, [rbx]
+    mov rdi, rbx
+    mov rsi, r12
     call strcmp_name
     test rax, rax
-    jz .found
+    jnz .found
     
     ; Continue searching
     test r13, r13
@@ -370,11 +370,11 @@ symbol_lookup_local:
     jne .continue
     
     ; Compare names
-    mov rdi, r12
-    lea rsi, [rbx]
+    mov rdi, rbx
+    mov rsi, r12
     call strcmp_name
     test rax, rax
-    jz .found
+    jnz .found
     
 .continue:
     test r13, r13
