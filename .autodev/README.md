@@ -14,6 +14,9 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `spec_consistency`: language-spec drift lane
 - `incident_recovery`: watchdog and restart lane
 - `metrics_observe`: observability snapshot lane
+- `fuzzing_stability`: grammar and random-input crash hunting lane
+- `runtime_oracle`: compile+run behavior oracle lane
+- `crash_triage`: crash/drift triage and signal summarization lane
 
 Feature-growth lanes are defined in `.autodev/feature_backlog.json` and executed
 periodically between validation cycles.
@@ -55,3 +58,14 @@ Default non-stop workers:
 - Commits only include files outside configured ignore patterns
 - Failed tasks are retried up to the policy limit
 - Empty backlog auto-regenerates from sprint templates
+
+## Minimal 3-Agent Acceleration Plan
+
+Execution order is chosen for maximum impact with minimal orchestration overhead:
+
+1. `fuzzing_stability` (first)
+   - KPI: zero segfault/timeouts across seeded fuzz batch (`/tmp/autodev_fuzzing_report.json`)
+2. `runtime_oracle` (second)
+   - KPI: stable exit-code contract on pinned runtime fixtures (`hello`, `control_flow`, `if_chain`, `while_return`)
+3. `crash_triage` (third)
+   - KPI: triage snapshot produced every cycle with crash/drift counts and top candidates (`/tmp/autodev_crash_triage.md`)

@@ -159,6 +159,26 @@ def regenerate_backlog(backlog: Dict) -> Dict:
             "steps": ["./test.sh"],
         },
         {
+            "id": f"SPRINT-FUZZ-{generated}",
+            "title": "Fuzzing lane crash sweep",
+            "lane": "fuzzing_stability",
+            "priority": "high",
+            "status": "pending",
+            "retries": 0,
+            "commit_message": "chore(fuzz): periodic autonomous crash sweep",
+            "steps": ["python3 ./.autodev/lanes/fuzzing_stability.py"],
+        },
+        {
+            "id": f"SPRINT-ORACLE-{generated}",
+            "title": "Runtime oracle behavior checks",
+            "lane": "runtime_oracle",
+            "priority": "high",
+            "status": "pending",
+            "retries": 0,
+            "commit_message": "chore(oracle): periodic runtime behavior checks",
+            "steps": ["./.autodev/lanes/runtime_oracle.sh"],
+        },
+        {
             "id": f"SPRINT-PERF-{generated}",
             "title": "Perf and memory periodic sweep",
             "lane": "perf_memory",
@@ -207,6 +227,16 @@ def regenerate_backlog(backlog: Dict) -> Dict:
             "retries": 0,
             "commit_message": "chore(metrics): periodic autonomous snapshot",
             "steps": ["python3 ./.autodev/lanes/metrics_observe.py"],
+        },
+        {
+            "id": f"SPRINT-TRIAGE-{generated}",
+            "title": "Crash triage and minimization snapshot",
+            "lane": "crash_triage",
+            "priority": "medium",
+            "status": "pending",
+            "retries": 0,
+            "commit_message": "chore(triage): periodic crash triage snapshot",
+            "steps": ["python3 ./.autodev/lanes/crash_triage.py"],
         },
     ]
     log("Backlog was empty; regenerated default sprint tasks")

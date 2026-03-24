@@ -27,12 +27,12 @@ def tail_lines(path: Path, max_lines: int = 300) -> list[str]:
 def main() -> int:
     RUNTIME.mkdir(parents=True, exist_ok=True)
 
-    fuzz = {}
+    fuzz: dict[str, object] = {}
     if FUZZ_REPORT.exists():
         try:
             fuzz = json.loads(FUZZ_REPORT.read_text(encoding="utf-8"))
         except Exception:
-            fuzz = {"parse_error": True}
+            fuzz = {"parse_error": "true"}
 
     log_tail = tail_lines(AUTODEV_LOG)
     recent_failures = [
@@ -45,8 +45,11 @@ def main() -> int:
     if ORACLE_DRIFT.exists():
         oracle_drift = ORACLE_DRIFT.read_text(encoding="utf-8", errors="ignore").splitlines()
 
-    crashes = fuzz.get("crashes", []) if isinstance(fuzz, dict) else []
-    outcomes = fuzz.get("outcomes", {}) if isinstance(fuzz, dict) else {}
+    crashes_raw = fuzz.get("crashes", [])
+    outcomes_raw = fuzz.get("outcomes", {})
+
+    crashes = crashes_raw if isinstance(crashes_raw, list) else []
+    outcomes = outcomes_raw if isinstance(outcomes_raw, dict) else {}
 
     summary = {
         "timestamp": now_utc(),
@@ -74,8 +77,8 @@ def main() -> int:
     if crashes:
         lines.extend(["## Top Crash Candidates", ""])
         for item in crashes[:5]:
-            case = item.get("case", "unknown")
-            kind = item.get("kind", "unknown")
+            case = item.get("case", "unknown") if isinstance(item, dict) else "unknown"
+            kind = item.get("kind", "unknown") if isinstance(item, dict) else "unknown"
             lines.append(f"- {kind}: `{case}`")
         lines.append("")
 
