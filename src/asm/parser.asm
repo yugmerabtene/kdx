@@ -1038,7 +1038,9 @@ parse_block:
 .check_stmt:
     cmp qword [token_type], TOKEN_EOF
     je .close
+    push r13
     call parse_statement
+    pop r13
     test rax, rax
     jz .close
     test r13, r13
@@ -2031,7 +2033,9 @@ parse_call_expr:
     cmp byte [rdi], ')'
     je .close
 .check_args:
+    push r14
     call parse_expression
+    pop r14
     test rax, rax
     jz .close
     test r14, r14
@@ -2049,7 +2053,9 @@ parse_call_expr:
     cmp byte [rdi], ','
     jne .close
     call advance_token
+    push r14
     call parse_expression
+    pop r14
     test rax, rax
     jz .close
     test r14, r14
