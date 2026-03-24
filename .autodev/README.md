@@ -18,6 +18,7 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `runtime_oracle`: compile+run behavior oracle lane
 - `crash_triage`: crash/drift triage and signal summarization lane
 - `regression_bisect`: non-destructive suspect-commit extraction lane
+- `quick_tests`: generate and run fast manual test pack
 
 Feature-growth lanes are defined in `.autodev/feature_backlog.json` and executed
 periodically between validation cycles.
@@ -76,3 +77,9 @@ Execution order is chosen for maximum impact with minimal orchestration overhead
 - `regression_bisect`
   - Purpose: infer suspect commits around latest failure window without checkout-based bisect
   - Outputs: `/.autodev/runtime/regression_bisect.json`, `/tmp/autodev_regression_bisect.md`
+
+## Quick Manual Suite
+
+- Generate/update files: `python3 ./.autodev/features/quick_test_agent.py --refresh`
+- Run stable fast suite: `./quick_tests/run_quick_tests.sh`
+- Lane entrypoint: `./.autodev/lanes/quick_tests.sh`
