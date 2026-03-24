@@ -49,6 +49,14 @@ function int main() {
     return 1;
 }
 """,
+    "p07_new_signature_call.kdx": """function int calc(int a, int b) {
+    return a + b;
+}
+
+function int main() {
+    return calc(4, 5);
+}
+""",
 }
 
 

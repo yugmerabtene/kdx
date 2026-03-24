@@ -71,6 +71,10 @@ expect_compile_ok "quick_tests/spec/pass/p06_strict_equality.kdx" "/tmp/spec_p06
 chmod +x /tmp/spec_p06.bin
 expect_program_exit 0 "/tmp/spec_p06.bin"
 
+expect_compile_ok "quick_tests/spec/pass/p07_new_signature_call.kdx" "/tmp/spec_p07.bin"
+chmod +x /tmp/spec_p07.bin
+expect_program_exit 9 "/tmp/spec_p07.bin"
+
 echo "[spec] baseline syntax fail cases"
 expect_compile_fail "quick_tests/spec/fail/f01_malformed_header.kdx"
 expect_compile_fail "quick_tests/spec/fail/f02_bad_token.kdx"
