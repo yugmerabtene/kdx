@@ -1,0 +1,7 @@
+function calc(a: int, b: int) -> int {
+    return a + b;
+}
+
+function main() -> int {
+    return calc(4, 5);
+}

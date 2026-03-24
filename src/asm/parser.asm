@@ -631,49 +631,79 @@ parse_function:
     push r12
     push r13
     push r14
-    sub rsp, 8
-    mov r12, rax
+    sub rsp, 16
+    mov qword [rbp - 8], 0          ; function node
+    mov qword [rbp - 16], 0         ; pre-parsed return type for type-first headers
     xor r13, r13
 .check_vis:
     cmp qword [token_type], TOKEN_KEYWORD
-    jne .check_fn
+    jne .check_header
     lea rdi, [token_value]
     mov rsi, .pub_str
     call strcmp
     jnz .check_priv
     mov r13, VIS_PUBLIC
     call advance_token
-    jmp .check_fn
+    jmp .check_header
 .check_priv:
     mov rsi, .priv_str
     call strcmp
     jnz .check_prot
     mov r13, VIS_PRIVATE
     call advance_token
-    jmp .check_fn
+    jmp .check_header
 .check_prot:
     mov rsi, .prot_str
     call strcmp
-    jnz .check_fn
+    jnz .check_header
     mov r13, VIS_PROTECTED
     call advance_token
-.check_fn:
+
+.check_header:
+    ; Header forms supported:
+    ; 1) function name(params) -> type
+    ; 2) function type name(params)
+    ; 3) type name(params)              (class method style)
+
     cmp qword [token_type], TOKEN_KEYWORD
-    jne .error
+    jne .header_type_first
     lea rdi, [token_value]
     mov rsi, .fn_str
     call strcmp
     test rax, rax
-    jz .got_fn
+    jz .after_fn_kw
     lea rdi, [token_value]
     mov rsi, .fn_short_str
     call strcmp
     test rax, rax
-    jnz .error
-.got_fn:
+    jz .after_fn_kw
+    jmp .header_type_first
+
+.after_fn_kw:
     call advance_token
+
+    ; Legacy form: function name(...)
+    cmp qword [token_type], TOKEN_IDENTIFIER
+    je .have_name
+
+    ; New form: function <type> <name>(...)
+    call parse_type
+    test rax, rax
+    jz .error
+    mov qword [rbp - 16], rax
     cmp qword [token_type], TOKEN_IDENTIFIER
     jne .error
+    jmp .have_name
+
+.header_type_first:
+    call parse_type
+    test rax, rax
+    jz .error
+    mov qword [rbp - 16], rax
+    cmp qword [token_type], TOKEN_IDENTIFIER
+    jne .error
+
+.have_name:
     call alloc_node
     mov r14, rax
     mov qword [rbp - 8], r14
@@ -697,19 +727,28 @@ parse_function:
     jz .error
     mov rdi, qword [rbp - 8]
     mov qword [rdi + 32], rax
-    
+
+    ; If return type was already parsed from type-first header, store it now.
+    mov rax, qword [rbp - 16]
+    test rax, rax
+    jz .check_arrow_return
+    mov rdi, qword [rbp - 8]
+    mov qword [rdi + 40], rax
+    jmp .parse_body
+
+.check_arrow_return:
     ; Check for optional return type "-> type"
     cmp qword [token_type], TOKEN_OPERATOR
-    jne .no_return_type
+    jne .parse_body
     lea rdi, [token_value]
     cmp byte [rdi], '-'
-    jne .no_return_type
+    jne .parse_body
 
     ; Support both combined "->" and split "-" ">" tokens
     cmp byte [rdi + 1], '>'
     je .arrow_combined
     cmp byte [rdi + 1], 0
-    jne .no_return_type
+    jne .parse_body
 
     call advance_token
     cmp qword [token_type], TOKEN_OPERATOR
@@ -725,15 +764,15 @@ parse_function:
     jz .error
     mov rdi, qword [rbp - 8]
     mov qword [rdi + 40], rax
-    
-.no_return_type:
+
+.parse_body:
     call parse_block
     test rax, rax
     jz .error
     mov rdi, qword [rbp - 8]
     mov qword [rdi + 48], rax
     mov rax, qword [rbp - 8]
-    add rsp, 8
+    add rsp, 16
     pop r14
     pop r13
     pop r12
@@ -741,7 +780,7 @@ parse_function:
     ret
 .error:
     xor rax, rax
-    add rsp, 8
+    add rsp, 16
     pop r14
     pop r13
     pop r12
@@ -829,6 +868,43 @@ parse_single_param:
     push rbp
     mov rbp, rsp
     push r12
+    push r13
+
+    ; New style: type name
+    cmp qword [token_type], TOKEN_KEYWORD
+    je .type_first
+    cmp qword [token_type], TOKEN_TYPE
+    je .type_first
+    jmp .name_first
+
+.type_first:
+    call parse_type
+    test rax, rax
+    jz .error
+    mov r13, rax
+    cmp qword [token_type], TOKEN_IDENTIFIER
+    jne .error
+    call alloc_node
+    mov r12, rax
+    mov rdi, rax
+    mov rsi, NODE_PARAM
+    call set_node_type
+    mov esi, [token_line]
+    call set_node_line
+    lea rsi, [token_value]
+    mov rdi, r12
+    add rdi, 24
+    mov rcx, 64
+    call memcpy_str
+    mov qword [r12 + 40], r13
+    call advance_token
+    mov rax, r12
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
+.name_first:
     cmp qword [token_type], TOKEN_IDENTIFIER
     jne .error
     call alloc_node
@@ -855,11 +931,13 @@ parse_single_param:
     jz .error
     mov qword [r12 + 40], rax
     mov rax, r12
+    pop r13
     pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
+    pop r13
     pop r12
     pop rbp
     ret
