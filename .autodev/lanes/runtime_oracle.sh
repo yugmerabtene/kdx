@@ -31,40 +31,11 @@ assert_exit() {
   echo "oracle ok: $src -> $rc" >> "$LOG_FILE"
 }
 
-probe_exit() {
-  local src="$1"
-  local expected="$2"
-  local name
-  name="$(basename "$src" .kdx)"
-  local out="/tmp/autodev_probe_${name}_bin"
-
-  ./kdx "$src" -o "$out" >> "$LOG_FILE" 2>&1
-  chmod +x "$out"
-
-  set +e
-  "$out" >> "$LOG_FILE" 2>&1
-  local rc=$?
-  set -e
-
-  if [[ "$rc" -ne "$expected" ]]; then
-    echo "drift: $src expected=$expected got=$rc" >> "$DRIFT_FILE"
-    echo "oracle drift: $src expected=$expected got=$rc" >> "$LOG_FILE"
-  else
-    echo "oracle probe ok: $src -> $rc" >> "$LOG_FILE"
-  fi
-}
-
 # Hard gate: stable runtime behavior
 assert_exit "examples/hello.kdx" 0
 assert_exit "examples/control_flow.kdx" 0
 assert_exit "examples/while_return.kdx" 0
 assert_exit "examples/if_chain.kdx" 0
-
-# Soft probe: known-evolving behavior, tracked but non-blocking
-probe_exit "examples/syntax_v2_increment.kdx" 3
-
-if [[ -f "$DRIFT_FILE" ]]; then
-  echo "[oracle] drift detected (non-blocking), see $DRIFT_FILE" >> "$LOG_FILE"
-fi
+assert_exit "examples/syntax_v2_increment.kdx" 3
 
 echo "[oracle] done $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$LOG_FILE"
