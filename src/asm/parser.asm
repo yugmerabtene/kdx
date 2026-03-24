@@ -490,6 +490,7 @@ parse_class:
     mov rbp, rsp
     push r12
     push r13
+    push r14
     cmp qword [token_type], TOKEN_KEYWORD
     jne .error
     lea rdi, [token_value]
@@ -515,7 +516,8 @@ parse_class:
     call advance_token
     lea rsi, [rel .open_brace]
     call expect_punct
-    mov qword [child_count], 0
+    mov qword [r13 + 8], 0
+    xor r14, r14                    ; last class child
 .class_body:
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .check_vis
@@ -547,28 +549,40 @@ parse_class:
     call parse_function
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r14, r14
+    jz .append_func_first
+    mov [r14 + 16], rax
+    jmp .append_func_set_last
+.append_func_first:
+    mov [r13 + 8], rax
+.append_func_set_last:
+    mov r14, rax
     jmp .class_body
 .parse_construct:
     call parse_constructor
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r14, r14
+    jz .append_ctor_first
+    mov [r14 + 16], rax
+    jmp .append_ctor_set_last
+.append_ctor_first:
+    mov [r13 + 8], rax
+.append_ctor_set_last:
+    mov r14, rax
     jmp .class_body
 .close:
     lea rsi, [rel .close_brace]
     call expect_punct
-    mov rdi, r13
-    call build_node
     mov rax, r13
+    pop r14
     pop r13
     pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
+    pop r14
     pop r13
     pop r12
     pop rbp
@@ -801,6 +815,7 @@ parse_params:
     push rbp
     mov rbp, rsp
     push r12
+    push r13
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .error
     lea rdi, [token_value]
@@ -814,7 +829,8 @@ parse_params:
     call set_node_type
     xor esi, esi
     mov qword [rdi + 16], rsi
-    mov qword [child_count], 0
+    mov qword [r12 + 8], 0
+    xor r13, r13                    ; last param child
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .check_param
     lea rdi, [token_value]
@@ -824,8 +840,14 @@ parse_params:
     call parse_single_param
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r13, r13
+    jz .append_first
+    mov [r13 + 16], rax
+    jmp .append_set_last
+.append_first:
+    mov [r12 + 8], rax
+.append_set_last:
+    mov r13, rax
 .param_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .close
@@ -836,8 +858,14 @@ parse_params:
     call parse_single_param
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r13, r13
+    jz .append_first_loop
+    mov [r13 + 16], rax
+    jmp .append_set_last_loop
+.append_first_loop:
+    mov [r12 + 8], rax
+.append_set_last_loop:
+    mov r13, rax
     jmp .param_loop
 .close:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -846,20 +874,21 @@ parse_params:
     cmp byte [rdi], ')'
     jne .done
     call advance_token
-    mov rdi, r12
-    call build_node
     mov rax, r12
+    pop r13
     pop r12
     pop rbp
     ret
 .done:
     mov qword [parser_error], 2
     xor rax, rax
+    pop r13
     pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
+    pop r13
     pop r12
     pop rbp
     ret
@@ -981,6 +1010,7 @@ parse_block:
     push rbp
     mov rbp, rsp
     push r12
+    push r13
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .error
     lea rdi, [token_value]
@@ -994,7 +1024,8 @@ parse_block:
     call set_node_type
     mov esi, [token_line]
     call set_node_line
-    mov qword [child_count], 0
+    mov qword [r12 + 8], 0
+    xor r13, r13                    ; last block child
 .block_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .check_stmt
@@ -1007,8 +1038,14 @@ parse_block:
     call parse_statement
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r13, r13
+    jz .append_first
+    mov [r13 + 16], rax
+    jmp .append_set_last
+.append_first:
+    mov [r12 + 8], rax
+.append_set_last:
+    mov r13, rax
     jmp .block_loop
 .close:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -1017,20 +1054,21 @@ parse_block:
     cmp byte [rdi], '}'
     jne .done
     call advance_token
-    mov rdi, r12
-    call build_node
     mov rax, r12
+    pop r13
     pop r12
     pop rbp
     ret
 .done:
     mov qword [parser_error], 2
     xor rax, rax
+    pop r13
     pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
+    pop r13
     pop r12
     pop rbp
     ret
@@ -1969,17 +2007,19 @@ parse_call_expr:
     mov rbp, rsp
     push r12
     push r13
+    push r14
     mov r13, rdi
     call alloc_node
     mov r12, rax
     mov rdi, rax
     mov rsi, NODE_CALL_EXPR
     call set_node_type
-    mov qword [child_count], 0
+    mov qword [r12 + 8], 0
+    xor r14, r14                    ; last call child
     test r13, r13
     jz .after_callee
-    mov rdi, r13
-    call add_child
+    mov [r12 + 8], r13
+    mov r14, r13
 .after_callee:
     call advance_token
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -1991,8 +2031,14 @@ parse_call_expr:
     call parse_expression
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r14, r14
+    jz .append_arg_first
+    mov [r14 + 16], rax
+    jmp .append_arg_set_last
+.append_arg_first:
+    mov [r12 + 8], rax
+.append_arg_set_last:
+    mov r14, rax
 .args_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .close
@@ -2003,8 +2049,14 @@ parse_call_expr:
     call parse_expression
     test rax, rax
     jz .close
-    mov rdi, rax
-    call add_child
+    test r14, r14
+    jz .append_arg_first_loop
+    mov [r14 + 16], rax
+    jmp .append_arg_set_last_loop
+.append_arg_first_loop:
+    mov [r12 + 8], rax
+.append_arg_set_last_loop:
+    mov r14, rax
     jmp .args_loop
 .close:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -2013,9 +2065,8 @@ parse_call_expr:
     cmp byte [rdi], ')'
     jne .done
     call advance_token
-    mov rdi, r12
-    call build_node
     mov rax, r12
+    pop r14
     pop r13
     pop r12
     pop rbp
@@ -2023,6 +2074,7 @@ parse_call_expr:
 .done:
     mov qword [parser_error], 2
     xor rax, rax
+    pop r14
     pop r13
     pop r12
     pop rbp
@@ -2152,12 +2204,13 @@ parse_primary:
     cmp byte [rdi], ')'
     je .close_new
 .parse_new_args:
-    mov qword [child_count], 0
+    mov qword [r12 + 8], 0
+    mov qword [child_count], 0       ; reuse as last-arg pointer
     call parse_expression
     test rax, rax
     jz .close_new
-    mov rdi, rax
-    call add_child
+    mov [r12 + 8], rax
+    mov [child_count], rax
 .new_args_loop:
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .close_new
@@ -2168,8 +2221,9 @@ parse_primary:
     call parse_expression
     test rax, rax
     jz .close_new
-    mov rdi, rax
-    call add_child
+    mov rdi, [child_count]
+    mov [rdi + 16], rax
+    mov [child_count], rax
     jmp .new_args_loop
 .close_new:
     cmp qword [token_type], TOKEN_PUNCTUATION
@@ -2178,8 +2232,6 @@ parse_primary:
     cmp byte [rdi], ')'
     jne .done_new
     call advance_token
-    mov rdi, r12
-    call build_node
 .done_new:
     mov rax, r12
     pop r12
