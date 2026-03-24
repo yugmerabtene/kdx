@@ -1149,11 +1149,23 @@ codegen_postfix_expr:
     mov rsi, rdi
     call symbol_lookup
     test rax, rax
-    jz .done
+    jz .fallback_local
 
     mov rdi, rax
     call symbol_get_addr
     mov r14, rax                    ; stack offset
+    jmp .have_offset
+
+.fallback_local:
+    mov rax, [local_count]
+    test rax, rax
+    jz .done
+    dec rax
+    imul rax, 16
+    lea r14, [local_vars + rax]
+    mov r14, [r14 + 8]
+
+.have_offset:
 
     mov rdi, r12
     call codegen_identifier
@@ -1256,8 +1268,16 @@ codegen_identifier:
     jmp .done
     
 .not_found:
-    ; If symbol not found, treat as external function or generate error
-    ; For now, just load zero
+    mov rax, [local_count]
+    test rax, rax
+    jz .load_zero
+    dec rax
+    imul rax, 16
+    lea r15, [local_vars + rax]
+    mov r14, [r15 + 8]
+    jmp .emit_load
+
+.load_zero:
     xor rax, rax
     
 .done:
