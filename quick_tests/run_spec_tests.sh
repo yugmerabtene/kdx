@@ -67,6 +67,10 @@ expect_compile_ok "quick_tests/spec/pass/p05_typed_params_header.kdx" "/tmp/spec
 chmod +x /tmp/spec_p05.bin
 expect_program_exit 0 "/tmp/spec_p05.bin"
 
+expect_compile_ok "quick_tests/spec/pass/p06_strict_equality.kdx" "/tmp/spec_p06.bin"
+chmod +x /tmp/spec_p06.bin
+expect_program_exit 0 "/tmp/spec_p06.bin"
+
 echo "[spec] baseline syntax fail cases"
 expect_compile_fail "quick_tests/spec/fail/f01_malformed_header.kdx"
 expect_compile_fail "quick_tests/spec/fail/f02_bad_token.kdx"
@@ -74,13 +78,11 @@ expect_compile_fail "quick_tests/spec/fail/f02_bad_token.kdx"
 if [[ "$TARGET_MODE" -eq 1 ]]; then
   echo "[spec] target mode (future cases must compile)"
   expect_compile_ok "quick_tests/spec/future/t02_class_main_void.kdx" "/tmp/spec_t02.bin"
-  expect_compile_ok "quick_tests/spec/future/t03_strict_equality.kdx" "/tmp/spec_t03.bin"
   expect_compile_ok "quick_tests/spec/future/t04_array_decl.kdx" "/tmp/spec_t04.bin"
   expect_compile_ok "quick_tests/spec/future/t05_switch_minimal.kdx" "/tmp/spec_t05.bin"
 else
   echo "[spec] tracking mode (future cases expected to fail for now)"
   expect_compile_fail "quick_tests/spec/future/t02_class_main_void.kdx"
-  expect_compile_fail "quick_tests/spec/future/t03_strict_equality.kdx"
   expect_compile_fail "quick_tests/spec/future/t04_array_decl.kdx"
   expect_compile_fail "quick_tests/spec/future/t05_switch_minimal.kdx"
 fi
