@@ -21,11 +21,11 @@ PASS_CASES = {
 }
 """,
     "p03_control_if.kdx": """function main() -> int {
-    int x = 1;
-    if (x) {
+    if (0) {
+        return 1;
+    } else {
         return 0;
     }
-    return 1;
 }
 """,
     "p04_postfix_increment.kdx": """function main() -> int {
