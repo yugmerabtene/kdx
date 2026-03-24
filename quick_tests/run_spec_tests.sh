@@ -59,6 +59,14 @@ expect_compile_ok "quick_tests/spec/pass/p03_print_and_return.kdx" "/tmp/spec_p0
 chmod +x /tmp/spec_p03.bin
 expect_program_exit 0 "/tmp/spec_p03.bin"
 
+expect_compile_ok "quick_tests/spec/pass/p04_new_header_main.kdx" "/tmp/spec_p04.bin"
+chmod +x /tmp/spec_p04.bin
+expect_program_exit 8 "/tmp/spec_p04.bin"
+
+expect_compile_ok "quick_tests/spec/pass/p05_typed_params_header.kdx" "/tmp/spec_p05.bin"
+chmod +x /tmp/spec_p05.bin
+expect_program_exit 0 "/tmp/spec_p05.bin"
+
 echo "[spec] baseline syntax fail cases"
 expect_compile_fail "quick_tests/spec/fail/f01_malformed_header.kdx"
 expect_compile_fail "quick_tests/spec/fail/f02_bad_token.kdx"

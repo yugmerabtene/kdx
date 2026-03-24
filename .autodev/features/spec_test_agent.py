@@ -26,6 +26,20 @@ PASS_CASES = {
     return 0;
 }
 """,
+    "p04_new_header_main.kdx": """function int main() {
+    int x = 7;
+    x++;
+    return x;
+}
+""",
+    "p05_typed_params_header.kdx": """function int add(int a, int b) {
+    return a + b;
+}
+
+function int main() {
+    return 0;
+}
+""",
 }
 
 
@@ -43,14 +57,6 @@ FAIL_CASES = {
 
 
 FUTURE_CASES = {
-    "t01_global_new_signature.kdx": """function int calc(int a, int b) {
-    return a + b;
-}
-
-function int main() {
-    return calc(4, 5);
-}
-""",
     "t02_class_main_void.kdx": """class Main {
     public void main() {
         println("hello");
