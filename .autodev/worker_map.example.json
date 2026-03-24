@@ -1,0 +1,12 @@
+{
+  "task_prefix_to_worker": {
+    "SPRINT-PARSER": "parser",
+    "SPRINT-CODEGEN": "codegen",
+    "SPRINT-QA": "qa",
+    "SPRINT-PERF": "reliability",
+    "SPRINT-SEC": "reliability",
+    "SPRINT-QUICKTEST": "reliability",
+    "SPRINT-DOCS": "docs",
+    "SPRINT-RELEASE": "release"
+  }
+}
