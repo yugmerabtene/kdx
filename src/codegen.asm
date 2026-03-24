@@ -1159,13 +1159,10 @@ codegen_postfix_expr:
     jmp .have_offset
 
 .fallback_local:
-    mov rax, [local_count]
-    test rax, rax
+    mov r14, [local_offset]
+    test r14, r14
     jz .done
-    dec rax
-    imul rax, 16
-    lea r14, [local_vars + rax]
-    mov r14, [r14 + 8]
+    neg r14
 
 .have_offset:
 
@@ -1253,10 +1250,10 @@ codegen_identifier:
     test r14, r14
     jns .positive_offset
     ; Negative offset: emit minus
-    mov rax, r14
-    neg rax
     call emit_instruction
     db '-', 0
+    mov rax, r14
+    neg rax
     jmp .emit_offset_value
 .positive_offset:
     ; Positive offset: emit plus (shouldn't happen for locals, but handle anyway)
@@ -1272,13 +1269,10 @@ codegen_identifier:
     jmp .done
     
 .not_found:
-    mov rax, [local_count]
-    test rax, rax
+    mov r14, [local_offset]
+    test r14, r14
     jz .load_zero
-    dec rax
-    imul rax, 16
-    lea r15, [local_vars + rax]
-    mov r14, [r15 + 8]
+    neg r14
     jmp .emit_load
 
 .load_zero:
