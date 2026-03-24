@@ -49,7 +49,7 @@ section .data
 DEFAULT_TYPE_SIZE equ 8
 
 ; AST node header size
-NODE_HEADER_SIZE equ 32
+NODE_HEADER_SIZE equ 24
 
 
 
@@ -66,6 +66,7 @@ section .bss
     local_vars        resq MAX_LOCALS
     local_count       resq 1
     local_offset      resq 1
+    tmp_stack_offset  resq 1
 
     loop_stack        resq MAX_NESTING
     loop_depth        resq 1
@@ -90,7 +91,7 @@ section .text
     global codegen_emit_label, codegen_emit_instruction, codegen_get_output
     global codegen_emit_string, codegen_emit_number
     global get_child_at
-extern malloc, free, memcpy, strlen
+extern malloc, free, memcpy, strlen, strcmp
 extern symbol_lookup, symbol_lookup_local, symbol_get_addr, symbol_set_addr
 extern ERR_DUP_SYMBOL, ERR_NOT_FOUND
 
@@ -511,6 +512,7 @@ codegen_let:
     push r13
     push r14
     push r15
+    sub rsp, 8
 
     mov r12, rdi                    ; let node
 
@@ -523,20 +525,19 @@ codegen_let:
     ; Compute negative offset for symbol table and address calculation
     mov rbx, rax
     neg rbx   ; rbx = negative offset
+    mov qword [tmp_stack_offset], rbx
 
-    ; Look up symbol by name (to store offset)
-    mov rdi, r12
-    add rdi, 24                     ; variable name string
-    mov rsi, rdi
-    call symbol_lookup_local
-    test rax, rax
-    jz .store_failed   ; symbol not found
-
-    ; rax = symbol pointer
-    ; rbx = negative offset
-    mov rdi, rax                    ; symbol pointer
-    mov rsi, rbx                    ; negative offset to store
-    call symbol_set_addr            ; store offset in symbol
+    ; Record local variable mapping (name ptr + stack offset)
+    mov rax, [local_count]
+    cmp rax, MAX_LOCALS
+    jge .done
+    imul rax, 16
+    lea r14, [local_vars + rax]
+    lea r15, [r12 + 24]
+    mov qword [r14], r15
+    mov rbx, qword [tmp_stack_offset]
+    mov qword [r14 + 8], rbx
+    inc qword [local_count]
 
     ; Parser stores initializer at +48
     mov r13, [r12 + 48]
@@ -548,17 +549,15 @@ codegen_let:
     call codegen_expression
 
     ; Store result to stack at the variable's offset (which we have in rbx as negative offset)
-    mov rdi, rbx
+    mov rdi, qword [tmp_stack_offset]
     call emit_mov_stack
 
 .done:
     xor rax, rax                    ; return success
     jmp .exit
 
-.store_failed:
-    mov rax, 1                      ; error (symbol not found)
-
 .exit:
+    add rsp, 8
     pop r15
     pop r14
     pop r13
@@ -1183,18 +1182,40 @@ codegen_identifier:
     mov r12, rdi                    ; identifier node
     
     ; Get the identifier name (at offset 24)
-    mov rdi, r12
-    add rdi, 24                     ; name field
-    
-    ; Look up the symbol in the symbol table
-    mov rsi, rdi                    ; rsi = name pointer for lookup
+    lea r13, [r12 + 24]
+
+    ; First lookup in codegen local table
+    xor r14, r14
+.local_loop:
+    cmp r14, [local_count]
+    jge .fallback_symbol
+    mov r15, r14
+    shl r15, 4
+    lea r15, [local_vars + r15]
+    mov rsi, [r15]
+    mov rdi, r13
+    call strcmp
+    test rax, rax
+    jz .found_local
+    inc r14
+    jmp .local_loop
+
+.found_local:
+    mov rax, [r15 + 8]              ; offset (negative for stack locals)
+    jmp .emit_load
+
+.fallback_symbol:
+    mov rdi, r13
+    mov rsi, rdi
     call symbol_lookup
     test rax, rax
     jz .not_found
-    
-    ; Get the offset from the symbol table entry
-    mov rdi, rax                    ; symbol pointer
-    call symbol_get_addr            ; rax = offset (negative for stack variables)
+
+    mov rdi, rax
+    call symbol_get_addr
+
+.emit_load:
+    mov r14, rax
     
     ; Generate code: mov rax, [rbp + offset]
     ; Since offset is negative, this becomes: mov rax, [rbp - offset]
@@ -1202,9 +1223,10 @@ codegen_identifier:
     db 'mov rax, [rbp', 0
     
     ; Check if offset is negative (it should be for stack variables)
-    test rax, rax
+    test r14, r14
     jns .positive_offset
     ; Negative offset: emit minus
+    mov rax, r14
     neg rax
     call emit_instruction
     db '-', 0
@@ -1213,7 +1235,9 @@ codegen_identifier:
     ; Positive offset: emit plus (shouldn't happen for locals, but handle anyway)
     call emit_instruction
     db '+', 0
+    mov rax, r14
 .emit_offset_value:
+    mov rdi, rax
     call emit_number_imm
     call emit_instruction
     db ']', 10, 0
@@ -1238,9 +1262,11 @@ codegen_number:
 
     mov r12, rdi                    ; number node
 
-    lea rsi, [r12 + NODE_HEADER_SIZE]
-    mov rdi, rax
-    call emit_mov_imm
+    call emit_instruction
+    db 'mov rax, ',0
+    lea rdi, [r12 + NODE_HEADER_SIZE]
+    call emit_node_name
+    call emit_newline
 
     pop r12
     pop rbp
@@ -1258,7 +1284,7 @@ codegen_string:
     call add_string_constant
     mov r13, rax
 
-    mov rdi, rax
+    xor rdi, rdi                    ; rax register id
     mov rsi, r13
     call emit_mov_imm
 
@@ -1288,6 +1314,7 @@ codegen_call:
     push r13
     push r14
     push r15
+    sub rsp, 8
 
     mov r12, rdi                    ; call node
 
@@ -1297,10 +1324,48 @@ codegen_call:
     jz .done
     mov r14, rax                    ; total children
     dec r14                         ; arg count (exclude callee)
+    mov qword [rbp - 8], r14
+
+    ; Fast path for builtins that are currently no-op
+    mov rdi, r12
+    xor rsi, rsi
+    call get_child_at
+    mov r13, rax
+    test r13, r13
+    jz .arg_prep
+
+    mov rdi, r13
+    call get_node_type_value
+    cmp rax, 19                     ; NODE_IDENTIFIER
+    jne .arg_prep
+
+    lea rdi, [r13 + 24]
+    cmp byte [rdi], 'p'
+    jne .arg_prep
+    cmp byte [rdi + 1], 'r'
+    jne .arg_prep
+    cmp byte [rdi + 2], 'i'
+    jne .arg_prep
+    cmp byte [rdi + 3], 'n'
+    jne .arg_prep
+    cmp byte [rdi + 4], 't'
+    jne .arg_prep
+    cmp byte [rdi + 5], 'l'
+    jne .arg_prep
+    cmp byte [rdi + 6], 'n'
+    jne .arg_prep
+    cmp byte [rdi + 7], 0
+    jne .arg_prep
+
+    xor rax, rax
+    jmp .done
+
+.arg_prep:
 
     xor r15, r15                    ; arg index
 
 .arg_loop:
+    mov r14, qword [rbp - 8]
     cmp r15, r14
     jge .call_func
 
@@ -1413,6 +1478,7 @@ codegen_call:
     call emit_newline
 
 .cleanup_stack:
+    mov r14, qword [rbp - 8]
     cmp r14, 6
     jle .done
 
@@ -1422,6 +1488,7 @@ codegen_call:
     call emit_add
 
 .done:
+    add rsp, 8
     pop r15
     pop r14
     pop r13
@@ -1962,16 +2029,19 @@ emit_add:
 emit_mov_stack:
     push rbp
     mov rbp, rsp
+    push r12
+
+    mov r12, rdi
 
     call emit_instruction
     db 'mov [rbp',0
-    cmp rdi, 0
+    cmp r12, 0
     jg .positive
     je .zero
 
     call emit_instruction
     db '-',0
-    mov rax, rdi
+    mov rax, r12
     neg rax
     mov rdi, rax
     call emit_number_imm
@@ -1979,12 +2049,14 @@ emit_mov_stack:
 .positive:
     call emit_instruction
     db '+',0
+    mov rdi, r12
     call emit_number_imm
 .zero:
 .close:
     call emit_instruction
     db '], rax',10,0
 
+    pop r12
     pop rbp
     ret
 
@@ -2012,41 +2084,22 @@ emit_number_imm:
     push rbp
     mov rbp, rsp
     push r12
-    push r13
-
     mov r12, rdi
-    mov r13, 0
 
-    test r12, r12
-    jnz .convert
-
-    mov dil, '0'
+    cmp r12, 0
+    jge .encode
+    mov dil, '-'
     call emit_char
-    jmp .done
+    neg r12
 
-.convert:
-    push rax
+.encode:
     mov rax, r12
-    xor rdx, rdx
-    mov r14, 10
-.div_loop:
-    div r14
-    add dl, '0'
-    push rdx
-    inc r13
-    xor rdx, rdx
-    test rax, rax
-    jnz .div_loop
-    pop rax
-
-.print_loop:
-    mov rdi, rax
-    call emit_char
-    dec r13
-    jnz .print_loop
+    lea rdi, [temp_label_a]
+    call int_to_str
+    lea rdi, [temp_label_a]
+    call emit_string
 
 .done:
-    pop r13
     pop r12
     pop rbp
     ret
@@ -2234,6 +2287,7 @@ emit_node_name:
     test al, al
     jz .done
 
+    mov dil, al
     call emit_char
     inc r12
     jmp .copy_loop
@@ -2253,7 +2307,7 @@ add_string_constant:
     mov r12, rdi                    ; string pointer
     mov r13, [string_pool_pos]
 
-    mov rdi, r13
+    mov rdi, r12
     call strlen
     mov r14, rax                    ; string length
 

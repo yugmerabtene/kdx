@@ -502,7 +502,8 @@ dispatch_token:
     cmp rsi, [input_len]
     jge .read_operator
 
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     cmp al, '/'
     je .line_comment
     cmp al, '*'
@@ -811,7 +812,8 @@ read_block_comment:
     cmp rsi, [input_len]
     jge .done
 
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     cmp al, '/'
     je .done_comment
 
@@ -1209,7 +1211,8 @@ read_plus_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '+'
@@ -1265,7 +1268,8 @@ read_minus_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '-'
@@ -1332,7 +1336,8 @@ read_eq_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '='
@@ -1377,7 +1382,8 @@ read_neq_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '='
@@ -1422,7 +1428,8 @@ read_lt_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '='
@@ -1478,7 +1485,8 @@ read_gt_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '='
@@ -1534,7 +1542,8 @@ read_and_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '&'
@@ -1579,7 +1588,8 @@ read_or_operator:
     jge .single
 
     lea rdi, [token_value]
-    movzx rax, byte [buf_ptr + rsi]
+    mov r10, [buf_ptr]
+    movzx rax, byte [r10 + rsi]
     mov byte [rdi + 1], al
 
     cmp al, '|'

@@ -454,26 +454,32 @@ parse_program:
 parse_import:
     push rbp
     mov rbp, rsp
+    push r12
     lea rsi, [rel .import_kw]
     call expect_keyword
     cmp qword [token_type], TOKEN_STRING
     jne .error
     call alloc_node
+    mov r12, rax
     mov rdi, rax
     mov rsi, NODE_IMPORT
     call set_node_type
     mov esi, [token_line]
     call set_node_line
     lea rsi, [token_value]
-    mov rdi, rax
+    mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
     call skip_semicolon
+    mov rax, r12
+    pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
+    pop r12
     pop rbp
     ret
 .import_kw:
@@ -625,6 +631,7 @@ parse_function:
     push r12
     push r13
     push r14
+    sub rsp, 8
     mov r12, rax
     xor r13, r13
 .check_vis:
@@ -669,6 +676,7 @@ parse_function:
     jne .error
     call alloc_node
     mov r14, rax
+    mov qword [rbp - 8], r14
     mov rdi, rax
     mov rsi, NODE_FUNCTION
     call set_node_type
@@ -687,7 +695,8 @@ parse_function:
     call parse_params
     test rax, rax
     jz .error
-    mov qword [r14 + 32], rax
+    mov rdi, qword [rbp - 8]
+    mov qword [rdi + 32], rax
     
     ; Check for optional return type "-> type"
     cmp qword [token_type], TOKEN_OPERATOR
@@ -714,14 +723,17 @@ parse_function:
     call parse_type
     test rax, rax
     jz .error
-    mov qword [r14 + 40], rax
+    mov rdi, qword [rbp - 8]
+    mov qword [rdi + 40], rax
     
 .no_return_type:
     call parse_block
     test rax, rax
     jz .error
-    mov qword [r14 + 48], rax
-    mov rax, r14
+    mov rdi, qword [rbp - 8]
+    mov qword [rdi + 48], rax
+    mov rax, qword [rbp - 8]
+    add rsp, 8
     pop r14
     pop r13
     pop r12
@@ -729,6 +741,7 @@ parse_function:
     ret
 .error:
     xor rax, rax
+    add rsp, 8
     pop r14
     pop r13
     pop r12
@@ -827,6 +840,7 @@ parse_single_param:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
@@ -871,6 +885,7 @@ parse_type:
     mov qword [rdi + 48], rsi
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
@@ -1059,6 +1074,7 @@ parse_let_decl:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
@@ -1120,6 +1136,7 @@ parse_typed_decl:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     mov qword [r12 + 40], r13
@@ -1967,6 +1984,7 @@ parse_primary:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
@@ -1984,6 +2002,7 @@ parse_primary:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
@@ -2039,6 +2058,7 @@ parse_primary:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token
@@ -2099,6 +2119,7 @@ parse_primary:
     call set_node_line
     lea rsi, [token_value]
     mov rdi, r12
+    add rdi, 24
     mov rcx, 64
     call memcpy_str
     call advance_token

@@ -22,7 +22,7 @@ section .data
     shell_args   db '-c', 0
     null_ptr     dq 0
 nasm_fmt     db 'nasm -f elf64 "%s" -o "%s"', 0
-ld_fmt       db 'ld -o "%s" "%s"', 0
+ld_fmt       db 'ld -o "%s" "%s" -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2', 0
 exec_fmt     db '"%s"', 0
 default_bin_file db 'test_output', 0
 default_asm_file db 'test_output.s', 0
