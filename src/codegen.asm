@@ -1154,6 +1154,8 @@ codegen_postfix_expr:
     mov rdi, rax
     call symbol_get_addr
     mov r14, rax                    ; stack offset
+    test r14, r14
+    jz .fallback_local
     jmp .have_offset
 
 .fallback_local:
@@ -1236,6 +1238,8 @@ codegen_identifier:
 
     mov rdi, rax
     call symbol_get_addr
+    test rax, rax
+    jz .not_found
 
 .emit_load:
     mov r14, rax
