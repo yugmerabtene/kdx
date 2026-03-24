@@ -17,6 +17,7 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `fuzzing_stability`: grammar and random-input crash hunting lane
 - `runtime_oracle`: compile+run behavior oracle lane
 - `crash_triage`: crash/drift triage and signal summarization lane
+- `regression_bisect`: non-destructive suspect-commit extraction lane
 
 Feature-growth lanes are defined in `.autodev/feature_backlog.json` and executed
 periodically between validation cycles.
@@ -69,3 +70,9 @@ Execution order is chosen for maximum impact with minimal orchestration overhead
    - KPI: stable exit-code contract on pinned runtime fixtures (`hello`, `control_flow`, `if_chain`, `while_return`)
 3. `crash_triage` (third)
    - KPI: triage snapshot produced every cycle with crash/drift counts and top candidates (`/tmp/autodev_crash_triage.md`)
+
+## Optional Add-On Agent
+
+- `regression_bisect`
+  - Purpose: infer suspect commits around latest failure window without checkout-based bisect
+  - Outputs: `/.autodev/runtime/regression_bisect.json`, `/tmp/autodev_regression_bisect.md`

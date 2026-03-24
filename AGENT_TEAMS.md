@@ -40,6 +40,7 @@ This file defines autonomous specialist teams and their execution boundaries.
   - zero segfault/timeouts in seeded fuzzing sweeps
   - stable runtime exit-code contract on pinned oracle fixtures
   - continuous crash triage snapshots with top repro candidates
+  - suspect-commit attribution snapshot available after failure windows
 
 ## Weekly Operating Contract
 

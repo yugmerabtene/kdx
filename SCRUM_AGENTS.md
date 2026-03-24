@@ -30,6 +30,7 @@ This repository is operated with a specialized multi-team scrum model for contin
 - Agent Fuzz (Fuzzing/Stability): seeded random corpus for crash and timeout detection
 - Agent Oracle (Runtime/Behavior): compile+run exit-code contract checks on pinned fixtures
 - Agent Triage (Crash/Signal): crash/drift summarization and repro candidate extraction
+- Agent Bisect (Regression/Attribution): non-destructive suspect-commit extraction after failures
 
 ## Scrum Cadence
 

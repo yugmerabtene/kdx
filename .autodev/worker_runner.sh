@@ -54,6 +54,7 @@ while true; do
       run_locked "python3 ./.autodev/lanes/fuzzing_stability.py >> '$LOG_FILE' 2>&1"
       run_locked "./.autodev/lanes/runtime_oracle.sh >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/crash_triage.py >> '$LOG_FILE' 2>&1"
+      run_locked "python3 ./.autodev/lanes/regression_bisect.py >> '$LOG_FILE' 2>&1"
       run_locked "./.autodev/lanes/incident_recovery.sh >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/metrics_observe.py >> '$LOG_FILE' 2>&1"
       ;;
