@@ -159,6 +159,16 @@ def regenerate_backlog(backlog: Dict) -> Dict:
             "steps": ["./test.sh"],
         },
         {
+            "id": f"SPRINT-QUICKTEST-{generated}",
+            "title": "Quick test lane generation and sweep",
+            "lane": "quick_tests",
+            "priority": "high",
+            "status": "pending",
+            "retries": 0,
+            "commit_message": "chore(quick-tests): periodic quick suite sweep",
+            "steps": ["./.autodev/lanes/quick_tests.sh"],
+        },
+        {
             "id": f"SPRINT-FUZZ-{generated}",
             "title": "Fuzzing lane crash sweep",
             "lane": "fuzzing_stability",
