@@ -539,6 +539,17 @@ codegen_let:
     mov qword [r14 + 8], rbx
     inc qword [local_count]
 
+    ; Mirror stack offset into symbol table entry when available
+    lea rdi, [r12 + 24]
+    call symbol_lookup
+    test rax, rax
+    jz .init_value
+    mov rdi, rax
+    mov rsi, qword [tmp_stack_offset]
+    call symbol_set_addr
+
+.init_value:
+
     ; Parser stores initializer at +48
     mov r13, [r12 + 48]
 
