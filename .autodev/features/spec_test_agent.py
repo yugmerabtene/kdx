@@ -40,6 +40,15 @@ function int main() {
     return 0;
 }
 """,
+    "p06_strict_equality.kdx": """function int main() {
+    int a = 1;
+    int b = 1;
+    if (a === b) {
+        return 0;
+    }
+    return 1;
+}
+""",
 }
 
 
@@ -62,15 +71,6 @@ FUTURE_CASES = {
         println("hello");
         return;
     }
-}
-""",
-    "t03_strict_equality.kdx": """function int main() {
-    int a = 1;
-    int b = 1;
-    if (a === b) {
-        return 0;
-    }
-    return 1;
 }
 """,
     "t04_array_decl.kdx": """function int main() {

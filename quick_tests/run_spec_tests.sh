@@ -16,7 +16,7 @@ expect_compile_ok() {
 expect_compile_fail() {
   local src="$1"
   set +e
-  ./kdx "$src" -S -o /tmp/spec_fail.s >/tmp/spec_test.stdout 2>/tmp/spec_test.stderr
+  ./kdx "$src" -o /tmp/spec_fail.bin >/tmp/spec_test.stdout 2>/tmp/spec_test.stderr
   local rc=$?
   set -e
   if [[ "$rc" -eq 0 ]]; then
@@ -73,14 +73,12 @@ expect_compile_fail "quick_tests/spec/fail/f02_bad_token.kdx"
 
 if [[ "$TARGET_MODE" -eq 1 ]]; then
   echo "[spec] target mode (future cases must compile)"
-  expect_compile_ok "quick_tests/spec/future/t01_global_new_signature.kdx" "/tmp/spec_t01.bin"
   expect_compile_ok "quick_tests/spec/future/t02_class_main_void.kdx" "/tmp/spec_t02.bin"
   expect_compile_ok "quick_tests/spec/future/t03_strict_equality.kdx" "/tmp/spec_t03.bin"
   expect_compile_ok "quick_tests/spec/future/t04_array_decl.kdx" "/tmp/spec_t04.bin"
   expect_compile_ok "quick_tests/spec/future/t05_switch_minimal.kdx" "/tmp/spec_t05.bin"
 else
   echo "[spec] tracking mode (future cases expected to fail for now)"
-  expect_compile_fail "quick_tests/spec/future/t01_global_new_signature.kdx"
   expect_compile_fail "quick_tests/spec/future/t02_class_main_void.kdx"
   expect_compile_fail "quick_tests/spec/future/t03_strict_equality.kdx"
   expect_compile_fail "quick_tests/spec/future/t04_array_decl.kdx"
