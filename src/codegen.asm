@@ -307,6 +307,9 @@ codegen_function:
     call generate_label
     mov [current_func_end], rax
 
+    mov rdi, r12
+    call spill_function_params
+
     mov r13, [r12 + 48]             ; function body block
     test r13, r13
     jz .emit_epilogue
@@ -364,6 +367,117 @@ count_params:
 
 emit_function_label:
     call emit_string
+    ret
+
+spill_function_params:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov r12, rdi                    ; function node
+    mov r15, [r12 + 32]             ; params container
+    test r15, r15
+    jz .done
+
+    mov rdi, r15
+    call get_child_count
+    mov r14, rax                    ; param count
+    xor r13, r13                    ; param index
+
+.param_loop:
+    cmp r13, r14
+    jge .done
+
+    mov rdi, r15
+    mov rsi, r13
+    call get_child_at
+    test rax, rax
+    jz .next_param
+
+    ; Reserve stack slot for parameter and register as local
+    mov rdx, rax                    ; param node
+    mov rax, [local_offset]
+    add rax, 8
+    mov [local_offset], rax
+    mov rbx, rax
+    neg rbx
+    mov qword [tmp_stack_offset], rbx
+
+    mov rax, [local_count]
+    cmp rax, MAX_LOCALS
+    jge .next_param
+    imul rax, 16
+    lea rcx, [local_vars + rax]
+    lea r8, [rdx + 24]
+    mov qword [rcx], r8
+    mov qword [rcx + 8], rbx
+    inc qword [local_count]
+
+    ; Mirror parameter stack offset into symbol table entry when available
+    lea rdi, [rdx + 24]
+    call symbol_lookup
+    test rax, rax
+    jz .load_arg
+    mov rdi, rax
+    mov rsi, qword [tmp_stack_offset]
+    call symbol_set_addr
+
+.load_arg:
+    cmp r13, 0
+    je .arg0
+    cmp r13, 1
+    je .arg1
+    cmp r13, 2
+    je .arg2
+    cmp r13, 3
+    je .arg3
+    cmp r13, 4
+    je .arg4
+    cmp r13, 5
+    je .arg5
+    jmp .next_param
+
+.arg0:
+    call emit_instruction
+    db 'mov rax, rdi',10,0
+    jmp .store_arg
+.arg1:
+    call emit_instruction
+    db 'mov rax, rsi',10,0
+    jmp .store_arg
+.arg2:
+    call emit_instruction
+    db 'mov rax, rdx',10,0
+    jmp .store_arg
+.arg3:
+    call emit_instruction
+    db 'mov rax, rcx',10,0
+    jmp .store_arg
+.arg4:
+    call emit_instruction
+    db 'mov rax, r8',10,0
+    jmp .store_arg
+.arg5:
+    call emit_instruction
+    db 'mov rax, r9',10,0
+
+.store_arg:
+    mov rdi, qword [tmp_stack_offset]
+    call emit_mov_stack
+
+.next_param:
+    inc r13
+    jmp .param_loop
+
+.done:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
     ret
 
 ;============================================================================
