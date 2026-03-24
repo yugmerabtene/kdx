@@ -238,6 +238,16 @@ def regenerate_backlog(backlog: Dict) -> Dict:
             "commit_message": "chore(triage): periodic crash triage snapshot",
             "steps": ["python3 ./.autodev/lanes/crash_triage.py"],
         },
+        {
+            "id": f"SPRINT-BISECT-{generated}",
+            "title": "Regression bisect suspect extraction",
+            "lane": "regression_bisect",
+            "priority": "medium",
+            "status": "pending",
+            "retries": 0,
+            "commit_message": "chore(bisect): periodic suspect extraction snapshot",
+            "steps": ["python3 ./.autodev/lanes/regression_bisect.py"],
+        },
     ]
     log("Backlog was empty; regenerated default sprint tasks")
     return backlog
