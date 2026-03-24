@@ -279,10 +279,8 @@ def render_pretty(d: dict, interval: float) -> str:
     )
     lines.append(
         f"| Success: 1h {s1:6.2f}% ({c1:>3}/{c1+f1:<3})  "
-        f"6h {s6:6.2f}% ({c6:>3}/{c6+f6:<3})  24h {s24:6.2f}% ({c24:>3}/{c24+f24:<3}) |
-"
+        f"6h {s6:6.2f}% ({c6:>3}/{c6+f6:<3})  24h {s24:6.2f}% ({c24:>3}/{c24+f24:<3}) |"
     )
-    lines[-1] = lines[-1].rstrip("\n")
     lines.append("+------------------------------------------------------------------------+")
     lines.append(f"| Worker Share ({d['window_hours']}h, events={ws_total:<4})                                         |")
     lines.append(f"| reliability [{bar(rel, 20)}] {rel:6.2f}%                               |")
