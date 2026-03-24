@@ -490,7 +490,6 @@ parse_class:
     mov rbp, rsp
     push r12
     push r13
-    push r14
     cmp qword [token_type], TOKEN_KEYWORD
     jne .error
     lea rdi, [token_value]
@@ -516,8 +515,7 @@ parse_class:
     call advance_token
     lea rsi, [rel .open_brace]
     call expect_punct
-    mov qword [r13 + 8], 0
-    xor r14, r14                    ; last class child
+    mov qword [child_count], 0
 .class_body:
     cmp qword [token_type], TOKEN_PUNCTUATION
     jne .check_vis
@@ -549,40 +547,28 @@ parse_class:
     call parse_function
     test rax, rax
     jz .close
-    test r14, r14
-    jz .append_func_first
-    mov [r14 + 16], rax
-    jmp .append_func_set_last
-.append_func_first:
-    mov [r13 + 8], rax
-.append_func_set_last:
-    mov r14, rax
+    mov rdi, rax
+    call add_child
     jmp .class_body
 .parse_construct:
     call parse_constructor
     test rax, rax
     jz .close
-    test r14, r14
-    jz .append_ctor_first
-    mov [r14 + 16], rax
-    jmp .append_ctor_set_last
-.append_ctor_first:
-    mov [r13 + 8], rax
-.append_ctor_set_last:
-    mov r14, rax
+    mov rdi, rax
+    call add_child
     jmp .class_body
 .close:
     lea rsi, [rel .close_brace]
     call expect_punct
+    mov rdi, r13
+    call build_node
     mov rax, r13
-    pop r14
     pop r13
     pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
-    pop r14
     pop r13
     pop r12
     pop rbp
