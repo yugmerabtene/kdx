@@ -899,10 +899,14 @@ codegen_return:
 
     mov rax, [rdi + 32]             ; optional return expression
     test rax, rax
-    jz .epilogue
+    jz .void_return
 
     mov rdi, rax
     call codegen_expression
+    jmp .epilogue
+
+.void_return:
+    xor rax, rax
 
 .epilogue:
     mov rsi, [current_func_end]

@@ -415,7 +415,24 @@ parse_program:
     call parse_class
     test rax, rax
     jz .parse_error
-    mov rdi, rax
+
+    ; Bridge class method entrypoint to top-level function when available.
+    ; If class first member is a function, add that function directly.
+    mov r10, rax
+    mov r11, [r10 + 8]
+    test r11, r11
+    jz .add_class_node
+    mov rdi, r11
+    call get_node_type
+    cmp rax, NODE_FUNCTION
+    jne .add_class_node
+    mov rdi, r11
+    jmp .add_class_child
+
+.add_class_node:
+    mov rdi, r10
+
+.add_class_child:
     call add_child
     jmp .parse_loop
 .parse_fn:
