@@ -488,7 +488,6 @@ parse_import:
 parse_class:
     push rbp
     mov rbp, rsp
-    push rbx
     push r12
     push r13
     cmp qword [token_type], TOKEN_KEYWORD
@@ -563,39 +562,13 @@ parse_class:
     call expect_punct
     mov rdi, r13
     call build_node
-
-    ; Class Main shim: expose main method directly as top-level function
-    ; so runtime entrypoint func_main is generated.
     mov rax, r13
-    lea rdi, [r13 + 24]
-    mov rsi, .main_class_kw
-    call strcmp
-    test rax, rax
-    jnz .ret_class
-
-    mov rbx, [r13 + 8]              ; first class member
-    test rbx, rbx
-    jz .ret_class
-    mov rdi, rbx
-    call get_node_type
-    cmp rax, NODE_FUNCTION
-    jne .ret_class
-    lea rdi, [rbx + 24]
-    mov rsi, .main_func_kw
-    call strcmp
-    test rax, rax
-    jnz .ret_class
-    mov rax, rbx
-
-.ret_class:
-    pop rbx
     pop r13
     pop r12
     pop rbp
     ret
 .error:
     xor rax, rax
-    pop rbx
     pop r13
     pop r12
     pop rbp
@@ -614,10 +587,6 @@ parse_class:
     db "{", 0
 .close_brace:
     db "}", 0
-.main_class_kw:
-    db "Main", 0
-.main_func_kw:
-    db "main", 0
 
 parse_constructor:
     push rbp
