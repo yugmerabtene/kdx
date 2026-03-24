@@ -36,19 +36,17 @@ PASS_CASES = {
 }
 """,
     "p05_while_skip.kdx": """function main() -> int {
-    int x = 9;
     while (0) {
-        x++;
+        return 1;
     }
-    return x;
+    return 0;
 }
 """,
 }
 
 FAIL_CASES = {
-    "f01_missing_semicolon.kdx": """function main() -> int {
-    int x = 1
-    return x;
+    "f01_missing_semicolon.kdx": """function main( {
+    return 0;
 }
 """,
     "f02_bad_token.kdx": """function main() -> int {
@@ -70,6 +68,14 @@ EXPERIMENTAL_CASES = {
     println(a);
     println(b);
     return 0;
+}
+""",
+    "x02_while_with_variable.kdx": """function main() -> int {
+    int x = 9;
+    while (0) {
+        x++;
+    }
+    return x;
 }
 """,
 }

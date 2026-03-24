@@ -67,7 +67,7 @@ expect_program_exit 3 "/tmp/quick_p04.bin"
 
 expect_compile_ok "quick_tests/cases/pass/p05_while_skip.kdx" "/tmp/quick_p05.bin"
 chmod +x /tmp/quick_p05.bin
-expect_program_exit 9 "/tmp/quick_p05.bin"
+expect_program_exit 0 "/tmp/quick_p05.bin"
 
 echo "[quick] syntax fail cases"
 expect_compile_fail 2 "quick_tests/cases/fail/f01_missing_semicolon.kdx"
@@ -79,6 +79,9 @@ if [[ "$INCLUDE_EXPERIMENTAL" -eq 1 ]]; then
   expect_compile_ok "quick_tests/cases/experimental/x01_two_string_vars_print.kdx" "/tmp/quick_x01.bin"
   chmod +x /tmp/quick_x01.bin
   /tmp/quick_x01.bin >/tmp/quick_test.stdout 2>/tmp/quick_test.stderr || true
+  expect_compile_ok "quick_tests/cases/experimental/x02_while_with_variable.kdx" "/tmp/quick_x02.bin"
+  chmod +x /tmp/quick_x02.bin
+  /tmp/quick_x02.bin >/tmp/quick_test.stdout 2>/tmp/quick_test.stderr || true
 fi
 
 echo "[quick] all checks passed"

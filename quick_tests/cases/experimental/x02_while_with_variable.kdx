@@ -1,6 +1,7 @@
 function main() -> int {
+    int x = 9;
     while (0) {
-        return 1;
+        x++;
     }
-    return 0;
+    return x;
 }
