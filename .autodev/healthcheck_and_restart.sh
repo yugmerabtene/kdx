@@ -18,7 +18,7 @@ check_service() {
 
 check_workers() {
   local profiles profile unit output line unit_name
-  profiles=(parser codegen qa reliability)
+  profiles=(parser codegen qa reliability devops)
 
   for profile in "${profiles[@]}"; do
     unit="kdx-autodev-worker@${profile}.service"

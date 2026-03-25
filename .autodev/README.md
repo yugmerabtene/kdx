@@ -58,6 +58,7 @@ Default non-stop workers:
 - `kdx-autodev-worker@codegen.service`
 - `kdx-autodev-worker@qa.service`
 - `kdx-autodev-worker@reliability.service`
+- `kdx-autodev-worker@devops.service`
 
 ## Safety
 

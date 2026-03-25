@@ -41,7 +41,7 @@ DEFAULT_TASK_PREFIX_MAP = {
     "SPRINT-MINIMIZER": "reliability",
     "SPRINT-RELEASE": "reliability",
     "SPRINT-FLAKY": "reliability",
-    "SPRINT-CICD": "reliability",
+    "SPRINT-CICD": "devops",
     "SPRINT-QUICKTEST": "reliability",
     "FEATURE-GROWTH-CORE": "reliability",
     "FEATURE-ROADMAP-SYNC": "reliability",
@@ -66,7 +66,7 @@ TOKEN_FALLBACK_MAP = {
     "MINIMIZER": "reliability",
     "RELEASE": "reliability",
     "FLAKY": "reliability",
-    "CICD": "reliability",
+    "CICD": "devops",
 }
 
 

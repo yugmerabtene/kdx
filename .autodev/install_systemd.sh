@@ -28,7 +28,8 @@ systemctl --user enable --now kdx-autodev-worker@parser.service
 systemctl --user enable --now kdx-autodev-worker@codegen.service
 systemctl --user enable --now kdx-autodev-worker@qa.service
 systemctl --user enable --now kdx-autodev-worker@reliability.service
+systemctl --user enable --now kdx-autodev-worker@devops.service
 
 echo "Installed and started kdx-autodev.service"
 echo "Health timer enabled: kdx-autodev-health.timer"
-echo "Workers enabled: parser, codegen, qa, reliability"
+echo "Workers enabled: parser, codegen, qa, reliability, devops"

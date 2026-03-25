@@ -10,6 +10,7 @@
     "SPRINT-MINIMIZER": "reliability",
     "SPRINT-RELEASE": "reliability",
     "SPRINT-FLAKY": "reliability",
+    "SPRINT-CICD": "devops",
     "SPRINT-DOCS": "docs",
     "SPRINT-PUBLISH": "release"
   }
