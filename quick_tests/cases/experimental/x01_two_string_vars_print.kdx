@@ -1,0 +1,7 @@
+function main() -> int {
+    string a = "Salut";
+    string b = "KodPix";
+    println(a);
+    println(b);
+    return 0;
+}

@@ -1,0 +1,6 @@
+function main() -> int {
+    int i = 1;
+    i++;
+    i++;
+    return i;
+}

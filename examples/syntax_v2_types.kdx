@@ -1,0 +1,8 @@
+function main() -> int {
+    int i = 1;
+    float f = 1;
+    string s = "ok";
+    boolean b = true;
+    char c;
+    return 0;
+}

@@ -1,0 +1,6 @@
+class Main {
+    public void main() {
+        println("hello");
+        return;
+    }
+}

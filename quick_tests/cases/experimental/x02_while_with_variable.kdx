@@ -1,0 +1,7 @@
+function main() -> int {
+    int x = 9;
+    while (0) {
+        x++;
+    }
+    return x;
+}
