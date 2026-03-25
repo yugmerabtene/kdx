@@ -3,7 +3,7 @@
   "repo": "",
   "default_branch": "main",
   "author_name": "yugmerabtene",
-  "author_email": "yugmerabtene@example.com",
+  "author_email": "yug.merabtene@gmail.com",
   "required_checks": [
     "CI / quality-gates",
     "CI / cross-platform-sanity"
