@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import datetime as dt
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -52,6 +53,8 @@ def infer_repo_from_remote() -> tuple[str | None, str | None]:
 
 
 def gh_logged_in() -> bool:
+    if str(os.environ.get("GH_TOKEN", "")).strip():
+        return True
     rc, _, _ = run("gh auth status")
     return rc == 0
 
