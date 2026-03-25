@@ -4,7 +4,7 @@ set -euo pipefail
 PROFILE="${1:-}"
 
 if [[ -z "$PROFILE" ]]; then
-  echo "usage: $0 <parser|codegen|qa|reliability>"
+  echo "usage: $0 <parser|codegen|qa|reliability|devops>"
   exit 1
 fi
 
@@ -63,6 +63,12 @@ while true; do
       run_locked "python3 ./.autodev/lanes/regression_bisect.py >> '$LOG_FILE' 2>&1"
       run_locked "./.autodev/lanes/incident_recovery.sh >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/metrics_observe.py >> '$LOG_FILE' 2>&1"
+      ;;
+    devops)
+      log "devops loop start"
+      run_locked "python3 ./.autodev/lanes/cicd_devops.py >> '$LOG_FILE' 2>&1"
+      run_locked "python3 ./.autodev/lanes/release_manager.py >> '$LOG_FILE' 2>&1"
+      run_locked "python3 ./.autodev/lanes/regression_guard.py >> '$LOG_FILE' 2>&1"
       ;;
     *)
       log "unknown profile: $PROFILE"
