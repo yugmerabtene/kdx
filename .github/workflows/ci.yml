@@ -1,41 +1,98 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, release/**, hotfix/**]
   pull_request:
-    branches: [main, master]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  quality-gates:
+    name: quality-gates
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y nasm shellcheck
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Lint scripts
-        run: shellcheck build.sh test.sh
-         
-      - name: Build compiler
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm shellcheck
+
+      - name: Script lint
+        run: shellcheck build.sh test.sh .autodev/healthcheck_and_restart.sh .autodev/worker_runner.sh
+
+      - name: Build
         run: ./build.sh
 
-      - name: Upload artifacts
+      - name: Test suite
+        run: ./test.sh
+
+      - name: Quick suite
+        run: ./quick_tests/run_quick_tests.sh
+
+      - name: Spec suite
+        run: ./quick_tests/run_spec_tests.sh
+
+      - name: Oracle gate
+        run: ./.autodev/lanes/runtime_oracle.sh
+
+      - name: Flaky hunter
+        run: python3 ./.autodev/lanes/flaky_hunter.py
+
+      - name: Security checks
+        run: ./.autodev/lanes/security_safety.sh
+
+      - name: Regression guard
+        run: python3 ./.autodev/lanes/regression_guard.py
+
+      - name: Prepare release-style artifacts
+        run: |
+          mkdir -p out
+          cp kdx out/kdx
+          tar -czf out/examples.tar.gz examples
+          sha256sum out/kdx out/examples.tar.gz > out/SHA256SUMS
+          cp README.md out/README.md
+          if [ -d docs/language ]; then tar -czf out/language-docs.tar.gz docs/language; fi
+
+      - name: Upload CI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kdx-binary
-          path: kdx
+          name: ci-artifacts
+          path: out/
 
-  smoke-tests:
-    runs-on: ubuntu-latest
-    needs: build
+  cross-platform-sanity:
+    name: cross-platform-sanity
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install NASM
-        run: sudo apt-get update && sudo apt-get install -y nasm
-
-      - name: Run smoke tests
-        run: timeout 180 ./test.sh
+      - name: Python sanity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          required = [
+            'README.md',
+            'docs/language/reference.md',
+            'docs/language/getting-started.md',
+            'docs/language/error-codes.md',
+            'docs/language/cookbook.md',
+            'docs/language/roadmap-compatibility.md',
+            '.autodev/lanes/cicd_devops.py',
+          ]
+          missing = [p for p in required if not pathlib.Path(p).exists()]
+          if missing:
+            raise SystemExit(f"missing required files: {missing}")
+          print('cross-platform sanity: ok')
+          PY
