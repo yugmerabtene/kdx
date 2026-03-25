@@ -2,7 +2,6 @@ build/
 *.o
 kdx
 *.bin
-*.asm
 *.s
 *.out
 *.exe
@@ -92,4 +91,3 @@ yarn-error.log*
 
 # Idea
 .idea/
-
