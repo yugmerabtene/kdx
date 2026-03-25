@@ -23,6 +23,7 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `minimizer`: failed-case reducer and repro minimizer lane
 - `release_manager`: release readiness and next-tag suggestion lane
 - `flaky_hunter`: repeated-run instability detector lane
+- `cicd_devops`: branch protection and CI policy synchronization lane
 
 Feature-growth lanes are defined in `.autodev/feature_backlog.json` and executed
 periodically between validation cycles.

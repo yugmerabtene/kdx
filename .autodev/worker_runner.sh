@@ -59,6 +59,7 @@ while true; do
       run_locked "python3 ./.autodev/lanes/minimizer.py >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/release_manager.py >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/flaky_hunter.py >> '$LOG_FILE' 2>&1"
+      run_locked "python3 ./.autodev/lanes/cicd_devops.py >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/regression_bisect.py >> '$LOG_FILE' 2>&1"
       run_locked "./.autodev/lanes/incident_recovery.sh >> '$LOG_FILE' 2>&1"
       run_locked "python3 ./.autodev/lanes/metrics_observe.py >> '$LOG_FILE' 2>&1"

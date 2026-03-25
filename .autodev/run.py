@@ -289,6 +289,16 @@ def regenerate_backlog(backlog: Dict) -> Dict:
             "steps": ["python3 ./.autodev/lanes/flaky_hunter.py"],
         },
         {
+            "id": f"SPRINT-CICD-{generated}",
+            "title": "CI/CD DevOps policy sync",
+            "lane": "cicd_devops",
+            "priority": "medium",
+            "status": "pending",
+            "retries": 0,
+            "commit_message": "chore(cicd): periodic devops policy sync",
+            "steps": ["python3 ./.autodev/lanes/cicd_devops.py"],
+        },
+        {
             "id": f"SPRINT-BISECT-{generated}",
             "title": "Regression bisect suspect extraction",
             "lane": "regression_bisect",
