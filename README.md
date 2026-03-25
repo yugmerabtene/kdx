@@ -1,117 +1,102 @@
 # KodPix (`kdx`)
 
-KodPix is a compiled programming language with C/Java-like syntax.  
-The current compiler is written in x86-64 NASM assembly and targets Linux ELF binaries.
+KodPix is a compiled language and toolchain written in x86-64 NASM assembly.
+It currently targets Linux ELF output and focuses on deterministic compiler behavior,
+clear error signaling, and strong autonomous quality gates.
 
-## Current Status
+## Why KodPix
 
-- Compiler frontend and pipeline are functional (`.kdx -> .s/.o -> ELF binary`)
-- Core commands are available: `-S`, `-c`, `-o`, `-x`, `-h`
-- Project is under active development (language features are being expanded)
+- Assembly-first compiler architecture
+- C-like syntax with evolving modernized declarations
+- End-to-end pipeline: `.kdx -> .s/.o -> ELF binary`
+- Continuous autonomous validation through orchestrated workers
 
-## Installation
+## Quick Start
 
-### Option 1: Prebuilt binary (recommended)
-
-1. Go to the releases page: `https://github.com/yugmerabtene/kdx/releases`
-2. Download the latest `kdx` Linux x86-64 binary
-3. Make it executable and install it:
-
-```bash
-chmod +x kdx
-sudo mv kdx /usr/local/bin/kdx
-```
-
-4. Verify:
-
-```bash
-kdx --help
-```
-
-### Option 2: Build from source
-
-Requirements:
+### Requirements
 
 - Linux x86-64
 - NASM 2.15+
 - GNU `ld` (binutils)
 
-Build:
+### Build
 
 ```bash
-git clone https://github.com/yugmerabtene/kdx.git
-cd kdx
 ./build.sh
 ```
 
-## Usage
+### Compile and Run
+
+```bash
+./kdx examples/hello.kdx -o hello
+./hello
+```
+
+### Common Modes
+
+```bash
+# Assembly only
+./kdx examples/hello.kdx -S -o hello.s
+
+# Object only
+./kdx examples/hello.kdx -c -o hello.o
+```
+
+## CLI Reference
 
 ```bash
 kdx [options] <input.kdx>
 ```
 
-Options:
-
-- `-S` output assembly only
-- `-c` compile to object only (no link)
-- `-o <file>` output file path
+- `-S` emit assembly only
+- `-c` emit object only
+- `-o <file>` set output path
 - `-x` execute after successful build
-- `-O0/-O1/-O2` optimization level flag (reserved/in progress)
 - `-h`, `--help` show help
 
-Examples:
+## Language Documentation
 
-```bash
-# Build executable
-./kdx examples/simple.kdx -o hello
-./hello
+- `docs/language/getting-started.md`
+- `docs/language/reference.md`
+- `docs/language/error-codes.md`
+- `docs/language/cookbook.md`
+- `docs/language/roadmap-compatibility.md`
 
-# Generate assembly
-./kdx examples/simple.kdx -S -o hello.s
+## CI and Quality Gates
 
-# Generate object file
-./kdx examples/simple.kdx -c -o hello.o
-```
+The repository uses structured CI with required quality gates:
 
-## Development
+- build
+- full test suite
+- quick suite
+- spec suite
+- runtime oracle
+- flaky detection
+- security checks
+- regression guard
 
-Build and test locally:
+CI workflow: `.github/workflows/ci.yml`
 
-```bash
-./build.sh
-./test.sh
-```
+## Branching and Release Discipline
 
-`test.sh` now includes:
+Recommended workflow:
 
-- positive smoke checks for `-S`, `-c`, and full compile/run
-- control-flow assembly generation check (`examples/control_flow.kdx`)
-- negative CLI checks (invalid flag, missing input, missing file)
-- oversized input rejection checks for lexer buffer safety
+- `main`
+- `feature/*`
+- `release/*`
+- `hotfix/*`
 
-CI runs on pushes and pull requests via GitHub Actions.
+Detailed strategy: `docs/dev/branching-strategy.md`
 
-Autonomous sprint tracking:
+## Autonomous Engineering System
 
-- `SCRUM_AGENTS.md` defines specialized agent roles and cadence
-- `AGENT_TEAMS.md` defines multi-team charters and weekly operating contract
-- `SPRINT_BOARD.md` tracks current in-progress and next-queue work
-- `.autodev/lanes/` contains dedicated reliability lanes (perf/security/spec/incident/metrics)
+Persistent orchestrator and workers are defined in `.autodev/`.
 
-Long-run stability workflow is documented in `TESTING.md`.
-Continuous week-long loop automation is available via `week_sprint_runner.sh`.
+- install services: `./.autodev/install_systemd.sh`
+- live metrics dashboard: `python3 ./metrics.py`
+- worker roles and charter: `SCRUM_AGENTS.md`, `AGENT_TEAMS.md`
 
-Persistent user-service automation is available via `.autodev/install_systemd.sh`.
-This installs the orchestrator and four non-stop worker services by default.
+## Project Status
 
-## Roadmap
-
-1. Lexer / parser / basic codegen
-2. Type system and semantic checks
-3. Optimizations
-4. Standard library modules
-5. Tooling and release polish
-
-## License
-
-License file will be added in a future release.
+KodPix is under active development with stable core validation loops and continuous
+improvement of syntax, codegen, and release readiness automation.
