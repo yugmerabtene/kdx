@@ -10,6 +10,12 @@ kdx
 __pycache__/
 *.pyc
 .env
+token.txt
+*.token
+*.secret
+*.pem
+*.key
+secrets/
 .vscode/
 .idea/
 *.log
@@ -92,4 +98,3 @@ yarn-error.log*
 
 # Idea
 .idea/
-

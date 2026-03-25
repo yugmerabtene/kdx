@@ -73,9 +73,16 @@ The repository uses structured CI with required quality gates:
 - runtime oracle
 - flaky detection
 - security checks
+- secret leak scan (tracked files)
 - regression guard
 
 CI workflow: `.github/workflows/ci.yml`
+
+## Confidentiality Safeguards
+
+- `scripts/secret_scan.py` scans tracked files for common secret patterns
+- `scripts/install_git_hooks.sh` installs `pre-commit` and `pre-push` secret scan hooks
+- `.gitignore` blocks local secret material (`token.txt`, `*.token`, `*.secret`, `*.pem`, `*.key`, `secrets/`)
 
 ## Branching and Release Discipline
 

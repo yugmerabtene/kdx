@@ -12,6 +12,8 @@ echo "[security] start $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > "$LOG_FILE"
 ./kdx -o -S examples/simple.kdx >> "$LOG_FILE" 2>&1 || true
 ./kdx examples/does_not_exist.kdx >> "$LOG_FILE" 2>&1 || true
 
+python3 ./scripts/secret_scan.py >> "$LOG_FILE" 2>&1
+
 ./test.sh >> "$LOG_FILE" 2>&1
 
 echo "[security] done $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$LOG_FILE"
