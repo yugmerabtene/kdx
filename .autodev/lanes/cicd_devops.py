@@ -14,6 +14,16 @@ RUNTIME = AUTODEV / "runtime"
 PROFILE_PATH = AUTODEV / "cicd_profile.json"
 OUT_JSON = RUNTIME / "cicd_devops.json"
 OUT_MD = Path("/tmp/autodev_cicd_devops.md")
+TOKEN_PATH = ROOT / "token.txt"
+
+
+def token_from_file() -> str:
+    if not TOKEN_PATH.exists():
+        return ""
+    try:
+        return TOKEN_PATH.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
 
 
 def now_utc() -> str:
@@ -21,12 +31,19 @@ def now_utc() -> str:
 
 
 def run(cmd: str, timeout: int = 120) -> tuple[int, str, str]:
+    env = os.environ.copy()
+    if not env.get("GH_TOKEN"):
+        token = token_from_file()
+        if token:
+            env["GH_TOKEN"] = token
+
     cp = subprocess.run(
         cmd,
         cwd=ROOT,
         shell=True,
         text=True,
         capture_output=True,
+        env=env,
         timeout=timeout,
     )
     return cp.returncode, cp.stdout, cp.stderr
@@ -54,6 +71,8 @@ def infer_repo_from_remote() -> tuple[str | None, str | None]:
 
 def gh_logged_in() -> bool:
     if str(os.environ.get("GH_TOKEN", "")).strip():
+        return True
+    if token_from_file():
         return True
     rc, _, _ = run("gh auth status")
     return rc == 0
