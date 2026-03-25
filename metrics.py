@@ -57,6 +57,10 @@ TOKEN_FALLBACK_MAP = {
     "TRIAGE": "reliability",
     "BISECT": "reliability",
     "QUICKTEST": "reliability",
+    "REGGUARD": "reliability",
+    "MINIMIZER": "reliability",
+    "RELEASE": "reliability",
+    "FLAKY": "reliability",
 }
 
 

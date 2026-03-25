@@ -6,7 +6,11 @@
     "SPRINT-PERF": "reliability",
     "SPRINT-SEC": "reliability",
     "SPRINT-QUICKTEST": "reliability",
+    "SPRINT-REGGUARD": "reliability",
+    "SPRINT-MINIMIZER": "reliability",
+    "SPRINT-RELEASE": "reliability",
+    "SPRINT-FLAKY": "reliability",
     "SPRINT-DOCS": "docs",
-    "SPRINT-RELEASE": "release"
+    "SPRINT-PUBLISH": "release"
   }
 }

@@ -19,6 +19,10 @@ This directory contains a local autonomous multi-agent loop that runs for one we
 - `crash_triage`: crash/drift triage and signal summarization lane
 - `regression_bisect`: non-destructive suspect-commit extraction lane
 - `quick_tests`: generate and run fast manual test pack
+- `regression_guard`: release safety gate over core suites
+- `minimizer`: failed-case reducer and repro minimizer lane
+- `release_manager`: release readiness and next-tag suggestion lane
+- `flaky_hunter`: repeated-run instability detector lane
 
 Feature-growth lanes are defined in `.autodev/feature_backlog.json` and executed
 periodically between validation cycles.
