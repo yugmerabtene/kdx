@@ -41,6 +41,10 @@ This file defines autonomous specialist teams and their execution boundaries.
   - stable runtime exit-code contract on pinned oracle fixtures
   - continuous crash triage snapshots with top repro candidates
   - suspect-commit attribution snapshot available after failure windows
+  - release safety gate status available every cycle (`regression_guard`)
+  - failed-case minimization artifacts available for triage (`minimizer`)
+  - release readiness and next-tag suggestion always fresh (`release_manager`)
+  - flaky suite detection over repeated loops (`flaky_hunter`)
 
 ## Weekly Operating Contract
 

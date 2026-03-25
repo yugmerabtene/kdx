@@ -31,6 +31,10 @@ This repository is operated with a specialized multi-team scrum model for contin
 - Agent Oracle (Runtime/Behavior): compile+run exit-code contract checks on pinned fixtures
 - Agent Triage (Crash/Signal): crash/drift summarization and repro candidate extraction
 - Agent Bisect (Regression/Attribution): non-destructive suspect-commit extraction after failures
+- Agent Guard (Regression/Gate): release safety checks across build/test/quick/spec/oracle gates
+- Agent Min (Failure/Reducer): automatic minimization of failing `.kdx` repros
+- Agent Release (Readiness): release readiness snapshot and next-tag proposal
+- Agent Flake (Stability/Noise): repeated-suite runs to detect flaky behavior
 
 ## Scrum Cadence
 

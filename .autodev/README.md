@@ -82,6 +82,21 @@ Execution order is chosen for maximum impact with minimal orchestration overhead
   - Purpose: infer suspect commits around latest failure window without checkout-based bisect
   - Outputs: `/.autodev/runtime/regression_bisect.json`, `/tmp/autodev_regression_bisect.md`
 
+## Additional High-Impact Lanes
+
+- `regression_guard`
+  - Purpose: run release safety gate over build/test/quick/spec/oracle
+  - Outputs: `/.autodev/runtime/regression_guard.json`, `/tmp/autodev_regression_guard.md`
+- `minimizer`
+  - Purpose: reduce latest failing `.kdx` case to minimal repro candidate
+  - Outputs: `/.autodev/runtime/minimizer.json`, `/tmp/autodev_minimizer/`
+- `release_manager`
+  - Purpose: evaluate release readiness and suggest next semantic tag
+  - Outputs: `/.autodev/runtime/release_manager.json`, `/tmp/autodev_release_manager.md`
+- `flaky_hunter`
+  - Purpose: re-run critical suites multiple times to detect instability
+  - Outputs: `/.autodev/runtime/flaky_hunter.json`, `/tmp/autodev_flaky_hunter.md`
+
 ## Quick Manual Suite
 
 - Generate/update files: `python3 ./.autodev/features/quick_test_agent.py --refresh`
