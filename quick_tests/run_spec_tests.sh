@@ -41,7 +41,9 @@ expect_program_exit() {
 
 rm -f /tmp/spec_test.stdout /tmp/spec_test.stderr /tmp/spec_fail.s /tmp/spec_*.bin
 
-python3 ./.autodev/features/spec_test_agent.py --refresh >/dev/null
+if [[ -f ./.autodev/features/spec_test_agent.py ]]; then
+  python3 ./.autodev/features/spec_test_agent.py --refresh >/dev/null
+fi
 
 echo "[spec] building compiler"
 ./build.sh >/dev/null

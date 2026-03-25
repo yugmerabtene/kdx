@@ -72,8 +72,8 @@ echo "[6/20] Control-flow sample emits assembly"
 ./kdx examples/control_flow.kdx -S -o ci_flow.s
 test -f ci_flow.s
 
-echo "[7/20] V2 type aliases compile"
-./kdx examples/syntax_v2_types.kdx -S -o ci_v2_types.s
+echo "[7/20] Typed params header compiles"
+./kdx quick_tests/spec/pass/p05_typed_params_header.kdx -S -o ci_v2_types.s
 test -f ci_v2_types.s
 
 echo "[8/20] V2 postfix increment parses and emits assembly"
