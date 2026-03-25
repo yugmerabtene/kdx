@@ -2,8 +2,8 @@
   "owner": "",
   "repo": "",
   "default_branch": "main",
-  "author_name": "",
-  "author_email": "",
+  "author_name": "yugmerabtene",
+  "author_email": "yugmerabtene@example.com",
   "required_checks": [
     "CI / quality-gates",
     "CI / cross-platform-sanity"
