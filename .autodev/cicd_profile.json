@@ -1,0 +1,13 @@
+{
+  "owner": "",
+  "repo": "",
+  "default_branch": "main",
+  "author_name": "",
+  "author_email": "",
+  "required_checks": [
+    "CI / quality-gates",
+    "CI / cross-platform-sanity"
+  ],
+  "require_code_owner_reviews": false,
+  "required_approving_review_count": 1
+}
