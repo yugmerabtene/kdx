@@ -104,7 +104,7 @@ Legal notice and attribution details:
 - `NOTICE`
 - `docs/legal/licensing.md`
 
-Commercial contact: `yug.merabtene@gmail.com`
+Commercial contact: `yug.merabtenekodpix.com`
 
 ## Project Status
 
