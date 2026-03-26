@@ -91,3 +91,22 @@ yarn-error.log*
 
 # Idea
 .idea/
+
+# Secrets and credentials
+token.txt
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+*.gpg
+*.asc
+credentials.json
+secrets.json
+service-account*.json
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519

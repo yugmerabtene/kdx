@@ -75,11 +75,17 @@ jobs:
           import pathlib
           required = [
             'README.md',
+            'CONTRIBUTING.md',
+            'LICENSE',
+            'LICENSE-COMMERCIAL.md',
+            'NOTICE',
             'docs/language/reference.md',
             'docs/language/getting-started.md',
             'docs/language/error-codes.md',
             'docs/language/cookbook.md',
             'docs/language/roadmap-compatibility.md',
+            'docs/dev/branching-strategy.md',
+            'docs/legal/licensing.md',
           ]
           missing = [p for p in required if not pathlib.Path(p).exists()]
           if missing:

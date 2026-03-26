@@ -75,6 +75,11 @@ The repository uses structured CI with required quality gates:
 
 CI workflow: `.github/workflows/ci.yml`
 
+Local hardening:
+
+- install pre-commit secret hook: `./scripts/install_git_hooks.sh`
+- run manual secret scan: `python3 scripts/secret_scan.py`
+
 ## Branching and Release Discipline
 
 Recommended workflow:
@@ -85,6 +90,21 @@ Recommended workflow:
 - `hotfix/*`
 
 Detailed strategy: `docs/dev/branching-strategy.md`
+Contribution guide: `CONTRIBUTING.md`
+
+## Licensing
+
+KodPix is dual-licensed:
+
+- open-source path: `GPL-3.0-only` (`LICENSE`)
+- commercial path: paid proprietary terms (`LICENSE-COMMERCIAL.md`)
+
+Legal notice and attribution details:
+
+- `NOTICE`
+- `docs/legal/licensing.md`
+
+Commercial contact: `yug.merabtene@gmail.com`
 
 ## Project Status
 
