@@ -1,4 +1,4 @@
-# KodPix (`kdx`)
+# Kodpix (`kdx`)
 
 KodPix is a compiled language and toolchain written in x86-64 NASM assembly.
 It currently targets Linux ELF output and focuses on deterministic compiler behavior
