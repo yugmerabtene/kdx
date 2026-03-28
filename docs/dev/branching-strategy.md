@@ -25,7 +25,7 @@ Use Conventional Commits:
 ## Release Flow
 
 1. Create `release/x.y.z` from `main`
-2. Run full gates (`build`, `test`, quick/spec/oracle/flaky/security)
+2. Run full gates (`./scripts/release_readiness.sh`)
 3. Update release notes and docs
 4. Merge to `main`
 5. Create tag `vX.Y.Z`

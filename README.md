@@ -75,6 +75,12 @@ The repository uses structured CI with required quality gates:
 
 CI workflow: `.github/workflows/ci.yml`
 
+Local hardening:
+
+- install pre-commit secret hook: `./scripts/install_git_hooks.sh`
+- run secret scan manually: `python3 scripts/secret_scan.py`
+- run full release readiness gate: `./scripts/release_readiness.sh`
+
 ## Branching and Release Discipline
 
 Recommended workflow:
@@ -85,6 +91,27 @@ Recommended workflow:
 - `hotfix/*`
 
 Detailed strategy: `docs/dev/branching-strategy.md`
+Release runbook: `docs/dev/release-runbook.md`
+Contribution guide: `CONTRIBUTING.md`
+
+## Licensing
+
+kdx is dual-licensed under kodpix governance:
+
+- open-source: `GPL-3.0-only` (`LICENSE`)
+- commercial: paid proprietary terms (`LICENSE-COMMERCIAL.md`)
+
+Author attribution and legal notice details are in `NOTICE` and `docs/legal/licensing.md`.
+Commercial contact: `yug.merabtene@gmail.com`.
+
+## Autonomous Engineering System
+
+Persistent orchestrator and workers are defined in `.autodev/`.
+
+- install services: `./.autodev/install_systemd.sh`
+- live metrics dashboard: `python3 ./metrics.py`
+- worker roles and charter: `SCRUM_AGENTS.md`, `AGENT_TEAMS.md`
+- devops auto sync report: `.autodev/runtime/devops_sync.json`
 
 ## Project Status
 
