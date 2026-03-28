@@ -3,6 +3,8 @@ import argparse
 import datetime as dt
 import fnmatch
 import json
+import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -13,6 +15,7 @@ RUNTIME = AUTODEV / "runtime"
 POLICY_PATH = AUTODEV / "policy.json"
 STATE_PATH = RUNTIME / "devops_sync.json"
 OUT_MD = Path("/tmp/autodev_devops_sync.md")
+TOKEN_PATH = ROOT / "token.txt"
 
 
 def now_utc() -> str:
@@ -127,6 +130,44 @@ def ensure_upstream(remote: str, branch: str) -> tuple[bool, str]:
     return True, "upstream created"
 
 
+def token_from_file() -> str:
+    if not TOKEN_PATH.exists():
+        return ""
+    try:
+        return TOKEN_PATH.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def github_token() -> str:
+    token = str(os.environ.get("GH_TOKEN", "")).strip()
+    if token:
+        return token
+    return token_from_file()
+
+
+def infer_repo_from_remote(remote: str) -> tuple[str | None, str | None]:
+    rc, out, _ = run(f"git remote get-url {remote}")
+    if rc != 0:
+        return None, None
+    url = out.strip()
+    m = re.search(r"github\.com[:/]([^/]+)/([^/.]+)(?:\.git)?$", url)
+    if not m:
+        return None, None
+    return m.group(1), m.group(2)
+
+
+def push_target(remote: str) -> tuple[str, str]:
+    token = github_token()
+    if not token:
+        return remote, "standard"
+    owner, repo = infer_repo_from_remote(remote)
+    if not owner or not repo:
+        return remote, "standard"
+    url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
+    return url, "token"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Auto commit/push sync for devops worker")
     parser.add_argument("--dry-run", action="store_true", help="Report only, no git add/commit/push")
@@ -142,6 +183,7 @@ def main() -> int:
     min_minutes = int(policy.get("devops_sync_min_minutes", 20))
     remote = str(policy.get("push_remote", "origin")).strip() or "origin"
     ignore = [str(x) for x in policy.get("ignore_commit_globs", []) if isinstance(x, str)]
+    push_dest, push_mode = push_target(remote)
 
     branch = current_branch()
     snapshot = {
@@ -152,6 +194,7 @@ def main() -> int:
         "pushed": False,
         "message": "",
         "remote": remote,
+        "push_mode": push_mode,
         "min_minutes": min_minutes,
     }
 
@@ -205,7 +248,7 @@ def main() -> int:
         write_report(snapshot)
         return 0
 
-    ok_upstream, upstream_msg = ensure_upstream(remote, branch)
+    ok_upstream, upstream_msg = ensure_upstream(push_dest, branch)
     if not ok_upstream:
         snapshot["status"] = "failed"
         snapshot["committed_paths"] = paths
@@ -214,11 +257,14 @@ def main() -> int:
         write_report(snapshot)
         return 0
 
-    rc, out, err = run(f"git push {remote} {branch}")
+    rc, out, err = run(f"git push {push_dest} {branch}")
     if rc != 0:
         snapshot["status"] = "failed"
         snapshot["committed_paths"] = paths
-        snapshot["message"] = err.strip() or out.strip() or "git push failed"
+        message = err.strip() or out.strip() or "git push failed"
+        if "Username for 'https://github.com'" in message:
+            message = "git push auth failed (configure GH_TOKEN or token.txt)"
+        snapshot["message"] = message
         save_state(snapshot)
         write_report(snapshot)
         return 0
