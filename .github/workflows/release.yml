@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: publish-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm shellcheck
+
+      - name: Build release artifacts
+        run: ./scripts/build_release_artifacts.sh "${GITHUB_REF_NAME}" out/release
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: KodPix ${{ github.ref_name }}
+          files: |
+            out/release/kdx-linux-x86_64
+            out/release/examples.tar.gz
+            out/release/language-docs.tar.gz
+            out/release/INSTALL.txt
+            out/release/SHA256SUMS
+          body: |
+            Automated release ${{ github.ref_name }}.
+            - install-ready Linux binary
+            - language docs and examples
+            - checksum manifest
