@@ -16,15 +16,6 @@ POLICY_PATH = AUTODEV / "policy.json"
 STATE_PATH = RUNTIME / "devops_sync.json"
 OUT_MD = Path("/tmp/autodev_devops_sync.md")
 TOKEN_PATH = ROOT / "token.txt"
-SENSITIVE_DEFAULT_GLOBS = [
-    "token.txt",
-    "*.pem",
-    "*.key",
-    "*.p12",
-    "*.pfx",
-    ".env",
-    ".env.*",
-]
 
 
 def now_utc() -> str:
@@ -88,8 +79,6 @@ def changed_paths(ignore_globs: list[str]) -> list[str]:
         if " -> " in path:
             path = path.split(" -> ", 1)[1]
         if any(fnmatch.fnmatch(path, pattern) for pattern in ignore_globs):
-            continue
-        if any(fnmatch.fnmatch(path, pattern) for pattern in SENSITIVE_DEFAULT_GLOBS):
             continue
         paths.append(path)
     return sorted(set(paths))
@@ -215,7 +204,6 @@ def main() -> int:
     remote = str(policy.get("push_remote", "origin")).strip() or "origin"
     ignore = [str(x) for x in policy.get("ignore_commit_globs", []) if isinstance(x, str)]
     push_dest, push_mode = push_target(remote)
-    fallback_branch = str(policy.get("devops_push_fallback_branch", "feature/devops-autosync")).strip()
     expected_branch = str(policy.get("commit_branch", "")).strip()
     if expected_branch.lower() == "auto" or not expected_branch:
         expected_branch = default_remote_branch(remote) or ""
@@ -231,7 +219,6 @@ def main() -> int:
         "remote": remote,
         "push_mode": push_mode,
         "expected_branch": expected_branch,
-        "fallback_branch": fallback_branch,
         "min_minutes": min_minutes,
     }
 
@@ -302,23 +289,9 @@ def main() -> int:
 
     rc, out, err = run(f"git push {push_dest} {branch}")
     if rc != 0:
-        message = err.strip() or out.strip() or "git push failed"
-        if "Changes must be made through a pull request" in message and fallback_branch:
-            rc_fb, out_fb, err_fb = run(f"git push {push_dest} HEAD:{fallback_branch}")
-            if rc_fb == 0:
-                snapshot["status"] = "synced_fallback"
-                snapshot["committed_paths"] = paths
-                snapshot["pushed"] = True
-                snapshot["last_push_at"] = now_utc()
-                snapshot["message"] = f"main protected, pushed to {fallback_branch}"
-                save_state(snapshot)
-                write_report(snapshot)
-                return 0
-
-            message = err_fb.strip() or out_fb.strip() or message
-
         snapshot["status"] = "failed"
         snapshot["committed_paths"] = paths
+        message = err.strip() or out.strip() or "git push failed"
         if "Username for 'https://github.com'" in message:
             message = "git push auth failed (configure GH_TOKEN or token.txt)"
         snapshot["message"] = message

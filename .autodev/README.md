@@ -83,7 +83,6 @@ One-shot worker (manual trigger):
 - DevOps worker performs periodic commit+push sync via `lanes/devops_sync.py`
   - Manual dry run: `python3 ./.autodev/lanes/devops_sync.py --dry-run`
   - Sync runs only when current branch matches policy branch (`commit_branch`)
-  - If `main` is protected, sync falls back to `devops_push_fallback_branch`
 - Failed tasks are retried up to the policy limit
 - Empty backlog auto-regenerates from sprint templates
 

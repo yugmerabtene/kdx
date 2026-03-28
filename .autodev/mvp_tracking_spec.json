@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "timezone": "UTC",
+  "tracking_window_hours": [
+    1,
+    3,
+    6,
+    12,
+    24
+  ],
+  "product_mvp_gates": [
+    "build_rc_zero",
+    "test_rc_zero",
+    "heartbeat_fresh",
+    "runtime_oracle_green",
+    "fuzzing_no_crash_timeout",
+    "crash_triage_clean"
+  ],
+  "score_model": {
+    "product_weight": 0.6,
+    "ops_weight": 0.4,
+    "ops_components": {
+      "cycle_progress_weight": 0.2,
+      "success_rate_6h_weight": 0.5,
+      "success_rate_24h_weight": 0.2,
+      "velocity_weight": 0.1
+    },
+    "velocity_reference_cycles_per_hour": 30.0,
+    "velocity_score_cap": 100.0
+  },
+  "baseline_snapshot": {
+    "timestamp": "2026-03-24T19:51:05+00:00",
+    "mvp_global_pct": 68.145723,
+    "product_mvp_pct": 83.333333,
+    "ops_health_pct": 45.364307,
+    "cycle_progress_pct": 20.0,
+    "success_rate_6h_pct": 51.685393,
+    "success_rate_24h_pct": 39.257504,
+    "velocity_cycles_per_hour": 23.009716,
+    "velocity_score_pct": 76.699053
+  }
+}
