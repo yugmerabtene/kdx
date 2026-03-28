@@ -15,6 +15,7 @@ PROFILE_PATH = AUTODEV / "cicd_profile.json"
 OUT_JSON = RUNTIME / "cicd_devops.json"
 OUT_MD = Path("/tmp/autodev_cicd_devops.md")
 TOKEN_PATH = ROOT / "token.txt"
+USER_TOKEN_PATH = Path.home() / ".config" / "kdx-autodev" / "gh_token"
 BRANCHING_DOC_PATH = ROOT / "docs" / "dev" / "branching-strategy.md"
 
 
@@ -35,6 +36,12 @@ def branching_policy_audit() -> tuple[bool, list[str]]:
 
 
 def token_from_file() -> str:
+    if USER_TOKEN_PATH.exists():
+        try:
+            return USER_TOKEN_PATH.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+
     if not TOKEN_PATH.exists():
         return ""
     try:

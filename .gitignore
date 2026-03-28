@@ -9,6 +9,7 @@ kdx
 __pycache__/
 *.pyc
 .env
+token.txt
 .vscode/
 .idea/
 *.log

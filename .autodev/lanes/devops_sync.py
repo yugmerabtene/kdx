@@ -16,6 +16,7 @@ POLICY_PATH = AUTODEV / "policy.json"
 STATE_PATH = RUNTIME / "devops_sync.json"
 OUT_MD = Path("/tmp/autodev_devops_sync.md")
 TOKEN_PATH = ROOT / "token.txt"
+USER_TOKEN_PATH = Path.home() / ".config" / "kdx-autodev" / "gh_token"
 SENSITIVE_DEFAULT_GLOBS = [
     "token.txt",
     "*.pem",
@@ -142,6 +143,12 @@ def ensure_upstream(remote: str, branch: str) -> tuple[bool, str]:
 
 
 def token_from_file() -> str:
+    if USER_TOKEN_PATH.exists():
+        try:
+            return USER_TOKEN_PATH.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+
     if not TOKEN_PATH.exists():
         return ""
     try:
