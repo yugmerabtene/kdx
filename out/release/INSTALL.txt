@@ -1,0 +1,6 @@
+KodPix release: v0.1.0
+
+Quick install:
+1) chmod +x kdx-linux-x86_64
+2) ./kdx-linux-x86_64 examples/hello.kdx -o hello
+3) ./hello
