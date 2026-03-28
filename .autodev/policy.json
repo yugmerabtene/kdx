@@ -32,7 +32,9 @@
   "autotag": true,
   "autopush": true,
   "push_remote": "origin",
-  "devops_sync_min_minutes": 5,
+  "devops_sync_min_minutes": 2,
+  "devops_heartbeat_enabled": true,
+  "devops_heartbeat_min_minutes": 2,
   "devops_push_fallback_branch": "feature/devops-autosync",
   "commit_branch": "auto",
   "ignore_commit_globs": [

@@ -84,6 +84,7 @@ One-shot worker (manual trigger):
   - Manual dry run: `python3 ./.autodev/lanes/devops_sync.py --dry-run`
   - Sync runs only when current branch matches policy branch (`commit_branch`)
   - If `main` is protected, sync falls back to `devops_push_fallback_branch`
+  - Heartbeat commits keep branch activity moving when no code delta exists
 - Failed tasks are retried up to the policy limit
 - Empty backlog auto-regenerates from sprint templates
 
@@ -102,6 +103,8 @@ One-shot worker (manual trigger):
   - `AUTODEV_WORKER_SLEEP_SECONDS=<n>`
 - DevOps push cadence can be tuned in `.autodev/policy.json`:
   - `devops_sync_min_minutes`
+  - `devops_heartbeat_enabled`
+  - `devops_heartbeat_min_minutes`
   - `autopush`
   - `push_remote`
   - `devops_push_fallback_branch`
