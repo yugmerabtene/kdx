@@ -32,7 +32,7 @@
   "autotag": true,
   "autopush": true,
   "push_remote": "origin",
-  "devops_sync_min_minutes": 20,
+  "devops_sync_min_minutes": 5,
   "commit_branch": "auto",
   "ignore_commit_globs": [
     "build/*",
