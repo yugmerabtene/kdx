@@ -12,10 +12,6 @@ This runbook is the operational checklist to deliver a functional public release
 
 - `./build.sh` and `./test.sh` pass.
 - Quick/spec/oracle/security/flaky/regression_guard gates are green.
-- Runtime snapshots report release readiness:
-  - `.autodev/runtime/regression_guard.json`
-  - `.autodev/runtime/flaky_hunter.json`
-  - `.autodev/runtime/release_manager.json`
 - Docs reflect current behavior for CLI and syntax.
 - Tag `vX.Y.Z` is published with release assets.
 

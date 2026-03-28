@@ -92,3 +92,9 @@ yarn-error.log*
 
 # Idea
 .idea/
+
+# Internal AI/automation process (private)
+.autodev/
+AGENT_TEAMS.md
+SCRUM_AGENTS.md
+week_sprint.log

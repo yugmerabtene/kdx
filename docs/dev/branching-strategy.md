@@ -13,6 +13,7 @@ KodPix uses a lightweight professional flow:
 - Required status checks must pass
 - At least one approval before merge
 - No force push, no branch deletion on protected branch
+- Internal IA/worker process artifacts are not allowed in public PRs
 
 ## Commit Convention
 

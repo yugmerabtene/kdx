@@ -92,6 +92,8 @@ Recommended workflow:
 
 Detailed strategy: `docs/dev/branching-strategy.md`
 Release runbook: `docs/dev/release-runbook.md`
+Project context: `docs/dev/project-context.md`
+Requirements baseline: `docs/dev/cahier-des-charges.md`
 Contribution guide: `CONTRIBUTING.md`
 
 ## Licensing
@@ -103,15 +105,6 @@ kdx is dual-licensed under kodpix governance:
 
 Author attribution and legal notice details are in `NOTICE` and `docs/legal/licensing.md`.
 Commercial contact: `yug.merabtene@gmail.com`.
-
-## Autonomous Engineering System
-
-Persistent orchestrator and workers are defined in `.autodev/`.
-
-- install services: `./.autodev/install_systemd.sh`
-- live metrics dashboard: `python3 ./metrics.py`
-- worker roles and charter: `SCRUM_AGENTS.md`, `AGENT_TEAMS.md`
-- devops auto sync report: `.autodev/runtime/devops_sync.json`
 
 ## Project Status
 
