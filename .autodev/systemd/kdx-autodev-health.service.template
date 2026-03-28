@@ -1,7 +1,0 @@
-[Unit]
-Description=KodPix AutoDev Heartbeat Check
-
-[Service]
-Type=oneshot
-WorkingDirectory=__REPO_ROOT__
-ExecStart=/bin/bash __REPO_ROOT__/.autodev/healthcheck_and_restart.sh

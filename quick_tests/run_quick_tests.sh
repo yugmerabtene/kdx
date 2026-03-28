@@ -43,10 +43,6 @@ expect_compile_fail() {
 
 rm -f /tmp/quick_test.stdout /tmp/quick_test.stderr /tmp/quick_fail.s /tmp/quick_*.bin
 
-if [[ -f ./.autodev/features/quick_test_agent.py ]]; then
-  python3 ./.autodev/features/quick_test_agent.py >/dev/null
-fi
-
 echo "[quick] building compiler"
 ./build.sh >/dev/null
 
