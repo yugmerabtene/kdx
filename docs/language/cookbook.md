@@ -10,6 +10,23 @@ function int add(int a, int b) {
 }
 ```
 
+Runnable variant:
+
+```kodpix
+function int main() {
+    int a = 7;
+    int b = 5;
+    int sum = a + b;
+    return sum;
+}
+```
+
+Quick run:
+
+```bash
+./scripts/run_kdx.sh examples/add_two_vars.kdx
+```
+
 ## Increment Counter
 
 ```kodpix

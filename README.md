@@ -90,6 +90,7 @@ Recommended workflow:
 
 Detailed strategy: `docs/dev/branching-strategy.md`
 Feature branch catalog: `docs/dev/feature-branch-catalog.md`
+Release runbook: `docs/dev/release-runbook.md`
 
 ## Project Status
 
