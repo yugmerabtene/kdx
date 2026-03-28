@@ -157,6 +157,26 @@ def infer_repo_from_remote(remote: str) -> tuple[str | None, str | None]:
     return m.group(1), m.group(2)
 
 
+def default_remote_branch(remote: str) -> str | None:
+    rc, out, _ = run(f"git symbolic-ref --quiet --short refs/remotes/{remote}/HEAD")
+    if rc == 0:
+        value = out.strip()
+        if value and "/" in value:
+            return value.split("/", 1)[1]
+
+    rc, out, _ = run(f"git remote show {remote}")
+    if rc != 0:
+        return None
+    for line in out.splitlines():
+        m = re.search(r"HEAD branch\s*:\s*(\S+)", line)
+        if m:
+            return m.group(1)
+        m = re.search(r"Branche HEAD\s*:\s*(\S+)", line)
+        if m:
+            return m.group(1)
+    return None
+
+
 def push_target(remote: str) -> tuple[str, str]:
     token = github_token()
     if not token:
@@ -184,6 +204,9 @@ def main() -> int:
     remote = str(policy.get("push_remote", "origin")).strip() or "origin"
     ignore = [str(x) for x in policy.get("ignore_commit_globs", []) if isinstance(x, str)]
     push_dest, push_mode = push_target(remote)
+    expected_branch = str(policy.get("commit_branch", "")).strip()
+    if expected_branch.lower() == "auto" or not expected_branch:
+        expected_branch = default_remote_branch(remote) or ""
 
     branch = current_branch()
     snapshot = {
@@ -195,6 +218,7 @@ def main() -> int:
         "message": "",
         "remote": remote,
         "push_mode": push_mode,
+        "expected_branch": expected_branch,
         "min_minutes": min_minutes,
     }
 
@@ -206,6 +230,12 @@ def main() -> int:
 
     if not branch:
         snapshot["message"] = "detached HEAD, sync skipped"
+        save_state(snapshot)
+        write_report(snapshot)
+        return 0
+
+    if expected_branch and branch != expected_branch:
+        snapshot["message"] = f"branch mismatch (current={branch}, expected={expected_branch})"
         save_state(snapshot)
         write_report(snapshot)
         return 0
