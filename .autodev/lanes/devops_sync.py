@@ -17,6 +17,7 @@ STATE_PATH = RUNTIME / "devops_sync.json"
 OUT_MD = Path("/tmp/autodev_devops_sync.md")
 TOKEN_PATH = ROOT / "token.txt"
 USER_TOKEN_PATH = Path.home() / ".config" / "kdx-autodev" / "gh_token"
+HEARTBEAT_PATH = AUTODEV / "heartbeat" / "devops_sync.md"
 SENSITIVE_DEFAULT_GLOBS = [
     "token.txt",
     "*.pem",
@@ -110,6 +111,42 @@ def should_push_now(state: dict, min_minutes: int) -> bool:
 def commit_message() -> str:
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return f"chore(devops): autonomous sync {stamp}"
+
+
+def heartbeat_message() -> str:
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return f"chore(devops): heartbeat sync {stamp}"
+
+
+def interval_elapsed(state: dict, key: str, min_minutes: int) -> bool:
+    value = str(state.get(key, "")).strip()
+    if not value:
+        return True
+    try:
+        ts = dt.datetime.fromisoformat(value)
+    except Exception:
+        return True
+    return (dt.datetime.now(dt.timezone.utc) - ts) >= dt.timedelta(minutes=min_minutes)
+
+
+def update_heartbeat(branch: str) -> str:
+    rc, out, _ = run("git rev-parse --short HEAD")
+    head = out.strip() if rc == 0 else "unknown"
+    now = now_utc()
+
+    HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    content = "\n".join(
+        [
+            "# DevOps Sync Heartbeat",
+            "",
+            f"- Timestamp: {now}",
+            f"- Branch: {branch}",
+            f"- Head: {head}",
+        ]
+    ) + "\n"
+    HEARTBEAT_PATH.write_text(content, encoding="utf-8")
+
+    return str(HEARTBEAT_PATH.relative_to(ROOT))
 
 
 def write_report(state: dict) -> None:
@@ -219,6 +256,8 @@ def main() -> int:
 
     enabled = bool(policy.get("autopush", True))
     min_minutes = int(policy.get("devops_sync_min_minutes", 20))
+    heartbeat_enabled = bool(policy.get("devops_heartbeat_enabled", True))
+    heartbeat_minutes = int(policy.get("devops_heartbeat_min_minutes", min_minutes))
     remote = str(policy.get("push_remote", "origin")).strip() or "origin"
     ignore = [str(x) for x in policy.get("ignore_commit_globs", []) if isinstance(x, str)]
     push_dest, push_mode = push_target(remote)
@@ -240,6 +279,8 @@ def main() -> int:
         "expected_branch": expected_branch,
         "fallback_branch": fallback_branch,
         "min_minutes": min_minutes,
+        "heartbeat_enabled": heartbeat_enabled,
+        "heartbeat_minutes": heartbeat_minutes,
     }
 
     if not enabled:
@@ -267,6 +308,13 @@ def main() -> int:
         return 0
 
     paths = changed_paths(ignore)
+    heartbeat_created = False
+
+    if not paths and heartbeat_enabled and interval_elapsed(state, "last_heartbeat_at", heartbeat_minutes):
+        heartbeat_rel = update_heartbeat(branch)
+        paths = [heartbeat_rel]
+        heartbeat_created = True
+
     if not paths:
         snapshot["message"] = "no committable changes"
         save_state(snapshot)
@@ -290,7 +338,8 @@ def main() -> int:
         write_report(snapshot)
         return 0
 
-    rc, out, err = run(f"git commit -m \"{commit_message()}\"")
+    msg = heartbeat_message() if heartbeat_created else commit_message()
+    rc, out, err = run(f"git commit -m \"{msg}\"")
     if rc != 0:
         snapshot["status"] = "failed"
         snapshot["message"] = err.strip() or out.strip() or "git commit failed"
@@ -317,6 +366,8 @@ def main() -> int:
                 snapshot["committed_paths"] = paths
                 snapshot["pushed"] = True
                 snapshot["last_push_at"] = now_utc()
+                if heartbeat_created:
+                    snapshot["last_heartbeat_at"] = snapshot["last_push_at"]
                 snapshot["message"] = f"main protected, pushed to {fallback_branch}"
                 save_state(snapshot)
                 write_report(snapshot)
@@ -336,6 +387,8 @@ def main() -> int:
     snapshot["committed_paths"] = paths
     snapshot["pushed"] = True
     snapshot["last_push_at"] = now_utc()
+    if heartbeat_created:
+        snapshot["last_heartbeat_at"] = snapshot["last_push_at"]
     snapshot["message"] = upstream_msg
     save_state(snapshot)
     write_report(snapshot)
