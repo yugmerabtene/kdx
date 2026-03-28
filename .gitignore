@@ -5,6 +5,8 @@ kdx
 *.s
 *.out
 *.exe
+test_output
+test_output.*
 .DS_Store
 __pycache__/
 *.pyc
