@@ -9,6 +9,7 @@ kdx
 __pycache__/
 *.pyc
 .env
+token.txt
 .vscode/
 .idea/
 *.log
@@ -91,3 +92,9 @@ yarn-error.log*
 
 # Idea
 .idea/
+
+# Internal process assets (private)
+.autodev/
+AGENT_TEAMS.md
+SCRUM_AGENTS.md
+week_sprint.log

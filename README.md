@@ -81,10 +81,9 @@ Recommended workflow:
 
 - `main`
 - `feature/*`
-- `release/*`
-- `hotfix/*`
 
 Detailed strategy: `docs/dev/branching-strategy.md`
+Feature branch catalog: `docs/dev/feature-branch-catalog.md`
 
 ## Project Status
 
