@@ -1,6 +1,6 @@
 function main() -> int {
     string a = "Salut";
-    string b = "KodPix";
+    string b = "kodpix";
     println(a);
     println(b);
     return 0;
