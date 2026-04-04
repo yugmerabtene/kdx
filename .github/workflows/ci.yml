@@ -51,6 +51,7 @@ jobs:
           if [ -d docs/language ]; then tar -czf out/language-docs.tar.gz docs/language; fi
 
       - name: Upload artifacts
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ci-artifacts
