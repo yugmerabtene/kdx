@@ -15,7 +15,7 @@ section .data
     TOKEN_PUNCTUATION equ 7
     TOKEN_COMMENT     equ 8
 
-    KEYWORD_COUNT     equ 28
+    KEYWORD_COUNT     equ 31
     TYPE_COUNT        equ 14
 
     kw_let        : db 'let',0
@@ -46,6 +46,9 @@ section .data
     kw_construct  : db '_construct',0
     kw_loop       : db 'loop',0
     kw_in         : db 'in',0
+    kw_switch     : db 'switch',0
+    kw_case       : db 'case',0
+    kw_default    : db 'default',0
 
     tp_i8         : db 'i8',0
     tp_i16        : db 'i16',0
@@ -91,6 +94,9 @@ section .data
         dq kw_construct, 10
         dq kw_loop, 4
         dq kw_in, 2
+        dq kw_switch, 6
+        dq kw_case, 4
+        dq kw_default, 7
 
     types_ptrs:
         dq tp_i8, 2

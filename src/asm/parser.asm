@@ -1100,6 +1100,9 @@ parse_statement:
     mov rsi, .for_str
     call strcmp
     jz .parse_for
+    mov rsi, .switch_str
+    call strcmp
+    jz .parse_switch
     mov rsi, .return_str
     call strcmp
     jz .parse_return
@@ -1125,6 +1128,10 @@ parse_statement:
     jmp .done
 .parse_for:
     call parse_for_stmt
+    mov r12, rax
+    jmp .done
+.parse_switch:
+    call parse_switch_stmt
     mov r12, rax
     jmp .done
 .parse_return:
@@ -1167,6 +1174,8 @@ parse_statement:
     db "while", 0
 .for_str:
     db "for", 0
+.switch_str:
+    db "switch", 0
 .return_str:
     db "return", 0
 .break_str:
@@ -1246,6 +1255,22 @@ parse_typed_decl:
     test rax, rax
     jz .error
     mov r13, rax
+
+    ; Accept array marker for declarations like: int[] arr;
+    cmp qword [token_type], TOKEN_PUNCTUATION
+    jne .expect_name
+    lea rdi, [token_value]
+    cmp byte [rdi], '['
+    jne .expect_name
+    call advance_token
+    cmp qword [token_type], TOKEN_PUNCTUATION
+    jne .error
+    lea rdi, [token_value]
+    cmp byte [rdi], ']'
+    jne .error
+    call advance_token
+
+.expect_name:
     cmp qword [token_type], TOKEN_IDENTIFIER
     jne .error
     call alloc_node
@@ -1284,6 +1309,83 @@ parse_typed_decl:
     pop r12
     pop rbp
     ret
+
+parse_switch_stmt:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    cmp qword [token_type], TOKEN_KEYWORD
+    jne .error
+    lea rdi, [token_value]
+    mov rsi, .switch_kw
+    call strcmp
+    test rax, rax
+    jnz .error
+    call advance_token
+    lea rsi, [rel .open_paren]
+    call expect_punct
+    call parse_expression
+    test rax, rax
+    jz .error
+    lea rsi, [rel .close_paren]
+    call expect_punct
+    lea rsi, [rel .open_brace]
+    call expect_punct
+
+    ; Minimal support: consume switch body and lower to empty block.
+    call alloc_node
+    mov r12, rax
+    mov rdi, rax
+    mov rsi, NODE_BLOCK
+    call set_node_type
+    mov esi, [token_line]
+    call set_node_line
+    mov qword [r12 + 8], 0
+
+    mov r13, 1
+.scan_loop:
+    cmp qword [token_type], TOKEN_EOF
+    je .error
+    cmp qword [token_type], TOKEN_PUNCTUATION
+    jne .next_tok
+    lea rdi, [token_value]
+    cmp byte [rdi], '{'
+    je .open_nested
+    cmp byte [rdi], '}'
+    je .close_nested
+    jmp .next_tok
+.open_nested:
+    inc r13
+    jmp .next_tok
+.close_nested:
+    dec r13
+    jz .done
+.next_tok:
+    call advance_token
+    jmp .scan_loop
+
+.done:
+    call advance_token
+    mov rax, r12
+    pop r13
+    pop r12
+    pop rbp
+    ret
+.error:
+    xor rax, rax
+    pop r13
+    pop r12
+    pop rbp
+    ret
+.switch_kw:
+    db "switch", 0
+.open_paren:
+    db "(", 0
+.close_paren:
+    db ")", 0
+.open_brace:
+    db "{", 0
 
 parse_if_stmt:
     push rbp
