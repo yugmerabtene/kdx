@@ -35,9 +35,11 @@ function main(a: int, b: int) -> int {
 ## Statements
 
 - Variable declaration: `type name = expr;`
+- Array declaration: `type[] name;`
 - Return: `return expr;`
 - Branching: `if (...) { ... } else { ... }`
 - Looping: `while (...) { ... }`, `for (...; ...; ...) { ... }`
+- Switch (minimal): `switch (expr) { case v: ... default: ... }`
 
 ## Operators
 

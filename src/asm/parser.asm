@@ -1313,6 +1313,7 @@ parse_typed_decl:
 parse_switch_stmt:
     push rbp
     mov rbp, rsp
+    sub rsp, 16
     push rbx
     push r12
     push r13
@@ -1378,14 +1379,14 @@ parse_switch_stmt:
     call parse_switch_case_block
     test rax, rax
     jz .error
-    mov rcx, rax                    ; case block
+    mov qword [rbp - 8], rax        ; case block
 
     mov rdi, r12
     mov rsi, rbx
     call make_switch_eq_cond
     test rax, rax
     jz .error
-    mov rdx, rax                    ; case condition
+    mov qword [rbp - 16], rax       ; case condition
 
     call alloc_node
     test rax, rax
@@ -1395,6 +1396,8 @@ parse_switch_stmt:
     call set_node_type
     mov esi, [token_line]
     call set_node_line
+    mov rdx, qword [rbp - 16]
+    mov rcx, qword [rbp - 8]
     mov qword [rdi + 32], rdx
     mov qword [rdi + 40], rcx
     mov qword [rdi + 48], 0
@@ -1439,6 +1442,7 @@ parse_switch_stmt:
 
 .return_root:
     mov rax, r13
+    add rsp, 16
     pop r15
     pop r14
     pop r13
@@ -1451,6 +1455,7 @@ parse_switch_stmt:
     test r15, r15
     jz .empty
     mov rax, r15
+    add rsp, 16
     pop r15
     pop r14
     pop r13
@@ -1461,6 +1466,7 @@ parse_switch_stmt:
 
 .empty:
     call make_empty_block
+    add rsp, 16
     pop r15
     pop r14
     pop r13
@@ -1471,6 +1477,7 @@ parse_switch_stmt:
 
 .error:
     xor rax, rax
+    add rsp, 16
     pop r15
     pop r14
     pop r13
