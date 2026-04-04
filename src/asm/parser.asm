@@ -1313,8 +1313,11 @@ parse_typed_decl:
 parse_switch_stmt:
     push rbp
     mov rbp, rsp
+    push rbx
     push r12
     push r13
+    push r14
+    push r15
     cmp qword [token_type], TOKEN_KEYWORD
     jne .error
     lea rdi, [token_value]
@@ -1328,64 +1331,300 @@ parse_switch_stmt:
     call parse_expression
     test rax, rax
     jz .error
+    mov r12, rax                    ; switch selector expression
     lea rsi, [rel .close_paren]
     call expect_punct
     lea rsi, [rel .open_brace]
     call expect_punct
 
-    ; Minimal support: consume switch body and lower to empty block.
+    xor r13, r13                    ; root if node
+    xor r14, r14                    ; last if node
+    xor r15, r15                    ; default block
+
+.entry_loop:
+    cmp qword [token_type], TOKEN_PUNCTUATION
+    jne .expect_label
+    lea rdi, [token_value]
+    cmp byte [rdi], '}'
+    je .close_switch
+
+.expect_label:
+    cmp qword [token_type], TOKEN_KEYWORD
+    jne .error
+
+    lea rdi, [token_value]
+    mov rsi, .case_kw
+    call strcmp
+    test rax, rax
+    jz .parse_case
+
+    lea rdi, [token_value]
+    mov rsi, .default_kw
+    call strcmp
+    test rax, rax
+    jz .parse_default
+
+    jmp .error
+
+.parse_case:
+    call advance_token
+    call parse_expression
+    test rax, rax
+    jz .error
+    mov rbx, rax                    ; case expression
+    lea rsi, [rel .colon]
+    call expect_punct
+
+    call parse_switch_case_block
+    test rax, rax
+    jz .error
+    mov rcx, rax                    ; case block
+
+    mov rdi, r12
+    mov rsi, rbx
+    call make_switch_eq_cond
+    test rax, rax
+    jz .error
+    mov rdx, rax                    ; case condition
+
     call alloc_node
-    mov r12, rax
+    test rax, rax
+    jz .error
     mov rdi, rax
-    mov rsi, NODE_BLOCK
+    mov rsi, NODE_IF_STMT
     call set_node_type
     mov esi, [token_line]
     call set_node_line
-    mov qword [r12 + 8], 0
+    mov qword [rdi + 32], rdx
+    mov qword [rdi + 40], rcx
+    mov qword [rdi + 48], 0
+    mov rbx, rdi                    ; new if node
 
-    mov r13, 1
-.scan_loop:
-    cmp qword [token_type], TOKEN_EOF
-    je .error
-    cmp qword [token_type], TOKEN_PUNCTUATION
-    jne .next_tok
-    lea rdi, [token_value]
-    cmp byte [rdi], '{'
-    je .open_nested
-    cmp byte [rdi], '}'
-    je .close_nested
-    jmp .next_tok
-.open_nested:
-    inc r13
-    jmp .next_tok
-.close_nested:
-    dec r13
-    jz .done
-.next_tok:
-    call advance_token
-    jmp .scan_loop
+    test r13, r13
+    jnz .link_case
+    mov r13, rbx
+    mov r14, rbx
+    jmp .entry_loop
 
-.done:
+.link_case:
+    mov rdi, rbx
+    call make_switch_if_wrapper
+    test rax, rax
+    jz .error
+    mov qword [r14 + 48], rax
+    mov r14, rbx
+    jmp .entry_loop
+
+.parse_default:
+    test r15, r15
+    jnz .error
     call advance_token
-    mov rax, r12
+    lea rsi, [rel .colon]
+    call expect_punct
+    call parse_switch_case_block
+    test rax, rax
+    jz .error
+    mov r15, rax
+    jmp .entry_loop
+
+.close_switch:
+    call advance_token
+
+    test r13, r13
+    jz .no_cases
+
+    test r15, r15
+    jz .return_root
+    mov qword [r14 + 48], r15
+
+.return_root:
+    mov rax, r13
+    pop r15
+    pop r14
     pop r13
     pop r12
+    pop rbx
     pop rbp
     ret
-.error:
-    xor rax, rax
+
+.no_cases:
+    test r15, r15
+    jz .empty
+    mov rax, r15
+    pop r15
+    pop r14
     pop r13
     pop r12
+    pop rbx
+    pop rbp
+    ret
+
+.empty:
+    call make_empty_block
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+    ret
+
+.error:
+    xor rax, rax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     pop rbp
     ret
 .switch_kw:
     db "switch", 0
+.case_kw:
+    db "case", 0
+.default_kw:
+    db "default", 0
 .open_paren:
     db "(", 0
 .close_paren:
     db ")", 0
 .open_brace:
     db "{", 0
+.colon:
+    db ":", 0
+
+parse_switch_case_block:
+    push rbp
+    mov rbp, rsp
+    push r12
+    push r13
+    call make_empty_block
+    test rax, rax
+    jz .error
+    mov r12, rax
+    xor r13, r13                    ; last statement
+
+.stmt_loop:
+    cmp qword [token_type], TOKEN_EOF
+    je .error
+
+    cmp qword [token_type], TOKEN_PUNCTUATION
+    jne .check_kw
+    lea rdi, [token_value]
+    cmp byte [rdi], '}'
+    je .done
+
+.check_kw:
+    cmp qword [token_type], TOKEN_KEYWORD
+    jne .parse_stmt
+    lea rdi, [token_value]
+    mov rsi, .case_kw
+    call strcmp
+    test rax, rax
+    jz .done
+    lea rdi, [token_value]
+    mov rsi, .default_kw
+    call strcmp
+    test rax, rax
+    jz .done
+
+.parse_stmt:
+    call parse_statement
+    test rax, rax
+    jz .error
+    test r13, r13
+    jz .append_first
+    mov qword [r13 + 16], rax
+    jmp .append_last
+.append_first:
+    mov qword [r12 + 8], rax
+.append_last:
+    mov r13, rax
+    jmp .stmt_loop
+
+.done:
+    mov rax, r12
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
+.error:
+    xor rax, rax
+    pop r13
+    pop r12
+    pop rbp
+    ret
+.case_kw:
+    db "case", 0
+.default_kw:
+    db "default", 0
+
+make_switch_eq_cond:
+    push rbp
+    mov rbp, rsp
+    push r12
+    mov r12, rdi                    ; selector expr
+    call alloc_node
+    test rax, rax
+    jz .error
+    mov rdi, rax
+    mov rdx, rax
+    mov rax, rsi                    ; keep case expr
+    mov rsi, NODE_BINARY_EXPR
+    call set_node_type
+    mov esi, [token_line]
+    call set_node_line
+    mov dword [rdx + 32], OP_EQ
+    mov qword [rdx + 40], r12
+    mov qword [rdx + 48], rax
+    mov rax, rdx
+    pop r12
+    pop rbp
+    ret
+.error:
+    xor rax, rax
+    pop r12
+    pop rbp
+    ret
+
+make_switch_if_wrapper:
+    push rbp
+    mov rbp, rsp
+    push r12
+    mov r12, rdi                    ; if node
+    call make_empty_block
+    test rax, rax
+    jz .error
+    mov qword [rax + 8], r12
+    pop r12
+    pop rbp
+    ret
+.error:
+    xor rax, rax
+    pop r12
+    pop rbp
+    ret
+
+make_empty_block:
+    push rbp
+    mov rbp, rsp
+    call alloc_node
+    test rax, rax
+    jz .error
+    mov rdi, rax
+    mov rsi, NODE_BLOCK
+    call set_node_type
+    mov esi, [token_line]
+    call set_node_line
+    mov qword [rdi + 8], 0
+    mov rax, rdi
+    pop rbp
+    ret
+.error:
+    xor rax, rax
+    pop rbp
+    ret
 
 parse_if_stmt:
     push rbp
