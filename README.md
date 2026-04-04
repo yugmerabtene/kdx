@@ -32,6 +32,12 @@ and clear error signaling.
 ./hello
 ```
 
+One-command helper (build + compile + run):
+
+```bash
+./scripts/run_kdx.sh examples/add_two_vars.kdx
+```
+
 ### Common Modes
 
 ```bash
@@ -84,8 +90,23 @@ Recommended workflow:
 
 Detailed strategy: `docs/dev/branching-strategy.md`
 Feature branch catalog: `docs/dev/feature-branch-catalog.md`
+Release runbook: `docs/dev/release-runbook.md`
 
 ## Project Status
 
 KodPix is under active development with stable core validation loops and continuous
 improvement of syntax, codegen, and release readiness automation.
+
+## Releases
+
+Build install-ready artifacts locally:
+
+```bash
+./scripts/build_release_artifacts.sh v0.1.0
+```
+
+Publish a GitHub release with bundled assets:
+
+```bash
+./scripts/create_release.sh v0.1.0
+```

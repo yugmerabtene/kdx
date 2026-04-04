@@ -23,6 +23,12 @@ The compiler binary is created as `./kdx`.
 ./hello
 ```
 
+One-command helper:
+
+```bash
+./scripts/run_kdx.sh examples/add_two_vars.kdx
+```
+
 ## Output Modes
 
 - Assembly only:

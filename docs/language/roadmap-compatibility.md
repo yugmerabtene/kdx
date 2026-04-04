@@ -17,7 +17,7 @@ This document tracks syntax evolution and compatibility guarantees.
 ## Near-Term Targets
 
 - Complete class-based entrypoint behavior hardening
-- Expand strict spec suite for arrays/switch and future grammar targets
+- Deepen strict spec coverage for arrays/switch edge cases and future grammar targets
 - Strengthen flaky detection and minimization loops
 
 ## Release Readiness Criteria
